@@ -6,6 +6,7 @@ import { HOSTS } from '../worker/providers';
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => $<HTMLInputElement>(id);
 const select = (id: string) => $<HTMLSelectElement>(id);
+$('version').textContent = `v${chrome.runtime.getManifest().version}`;
 let state: PopupState;
 const explanations: Partial<Record<ErrorCode, string>> = {
   RATE_PERMISSION_REQUIRED: 'Enable the selected external source and grant its permission, or choose Manual.',
@@ -111,3 +112,6 @@ $('reset').addEventListener('click', () => void act(async () => {
   $('feedback').textContent = 'Preferences, rates, cache, and provider key cleared. Browser-granted permissions can be revoked above.';
 }));
 void act(async () => { render(await send<PopupState>({ type: 'getState' })); });
+// Saving config and annotating the active tab complete asynchronously.
+// Refresh counts while this popup is visible; closing it stops this timer.
+setInterval(() => { if (!document.hidden) void viewStatus(); }, 1000);

@@ -20,7 +20,8 @@ export const adapter: SiteAdapter = {
     const regions: Region[] = [];
     for (const [root, kind] of [[holdings[0]!, 'marketValue'], [cash[0]!, 'cash']] as const) {
       const wrapper = root.parentElement;
-      if (!wrapper?.classList.contains('_tbw') || !wrapper.parentElement || root.tHead?.rows.length !== 1 || root.tBodies.length !== 1) return null;
+      // The captured holdings grid uses a separate tbody for each position.
+      if (!wrapper?.classList.contains('_tbw') || !wrapper.parentElement || root.tHead?.rows.length !== 1 || root.tBodies.length === 0) return null;
       regions.push({ root, kind, statusMount: wrapper.parentElement, statusBefore: wrapper });
     }
     return { context, regions };
@@ -39,10 +40,10 @@ export const adapter: SiteAdapter = {
     const currencyHeaders = headers.filter(h => normalized(h.querySelector('._thc') ?? h) === 'Currency');
     const currencyColumn = currencyHeaders.length === 1 ? headers.indexOf(currencyHeaders[0]!) : -1;
     if (region.kind === 'cash' && currencyColumn < 0) return { candidates: [], code: 'CURRENCY_AMBIGUOUS' };
-    const rows = dirtyRows ? [...dirtyRows] : [...(table.tBodies[0]?.rows ?? [])];
+    const rows = dirtyRows ? [...dirtyRows] : [...table.tBodies].flatMap(body => [...body.rows]);
     const candidates: Candidate[] = [];
     for (const row of rows) {
-      if (!(row instanceof HTMLTableRowElement) || row.parentElement !== table.tBodies[0] || row.cells.length !== headers.length || [...row.cells].some(c => c.colSpan !== 1 || c.rowSpan !== 1)) continue;
+      if (!(row instanceof HTMLTableRowElement) || row.parentElement?.tagName !== 'TBODY' || row.parentElement.parentElement !== table || row.cells.length !== headers.length || [...row.cells].some(c => c.colSpan !== 1 || c.rowSpan !== 1)) continue;
       const cell = row.cells[column]!;
       if (cell.querySelector('button,input,select,textarea,a,[contenteditable="true"]')) continue;
       const spans = direct<HTMLElement>(cell, 'SPAN');

@@ -89,6 +89,33 @@ test('production manifest and bundle enforce the discovery gate', async () => {
   const background = await readFile('dist/production/background.js', 'utf8');
   expect(background).not.toMatch(/127\.0\.0\.1|localhost|fetch\(["']https?:\/\/[^"\s]*interactivebrokers/);
 });
+
+test('popup has a stable intrinsic width when its initial viewport is narrow', async () => {
+  await popup.setViewportSize({ width: 180, height: 600 });
+  await popup.reload();
+  await expect.poll(() => popup.locator('html').evaluate(el => el.getBoundingClientRect().width)).toBe(390);
+  await expect.poll(() => popup.locator('body').evaluate(el => el.getBoundingClientRect().width)).toBe(390);
+  await expect(popup.locator('#version')).toHaveText(`v${await worker.evaluate(() => chrome.runtime.getManifest().version)}`);
+});
+
+test('the actual toolbar popup autosizes and reports active fixture fields', async () => {
+  await configure();
+  await expect(page.locator('[data-usd-lens=estimate]')).toHaveCount(5);
+  try {
+    await popup.evaluate(async () => chrome.action.openPopup());
+    await expect.poll(() => popup.evaluate(() => {
+      const view = chrome.extension.getViews({ type: 'popup' })[0];
+      if (!view) return null;
+      return {
+        width: view.document.body.getBoundingClientRect().width,
+        fits: view.document.documentElement.scrollWidth <= view.innerWidth,
+        counts: view.document.getElementById('counts')?.textContent,
+      };
+    })).toEqual({ width: 390, fits: true, counts: '5/5 fields' });
+  } finally {
+    await popup.evaluate(() => chrome.extension.getViews({ type: 'popup' }).forEach(view => view.close()));
+  }
+});
 test('first-run popup, golden values, native copy and DOM export remain intact', async () => {
   const nativeBefore = await page.locator('[data-fixture-region]').allTextContents();
   await configure();

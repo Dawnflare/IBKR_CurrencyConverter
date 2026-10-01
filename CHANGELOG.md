@@ -1,5 +1,14 @@
 # Change log
 
+## 0.1.1 — 2026-09-30
+
+- Fixed page detection rejecting the captured holdings grid because it uses one `tbody` per holding. Discovery now accepts multiple body sections and reads each section's direct rows.
+- Corrected the fictional captured-structure fixture, reproduced the 0.1.0 failure, and added regression coverage for updates, sorting/reordering, replacement, removal, and regrouping across body sections.
+- Fixed the toolbar popup's width by giving its root and body a stable intrinsic width. Added both narrow-viewport and actual toolbar-popup checks.
+- Show the installed version in the popup and refresh its field counts while open so asynchronous annotation updates are reflected.
+
+The saved manual rate is preserved. Reload the extension and refresh the Positions page to use this build. Live-site validation remains pending.
+
 ## 0.1.0 — 2026-09-30
 
 Status: **live-site-validation-pending**.

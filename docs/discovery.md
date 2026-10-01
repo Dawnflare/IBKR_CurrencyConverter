@@ -15,6 +15,7 @@ The PRD and handoff establish scope. During implementation the user supplied a l
 | Origin and route | `https://portal.interactivebrokers.com`, pathname `/portal/`, hash `#/dashboard/positions`. Query values are unnecessary and ignored. Other routes do not trigger DOM discovery. |
 | View scope | A single `.ptf-models` container contains both supported regions. Replacement of this context or either table invalidates the old generation. |
 | Holdings | `.ptf-positions`, a `Your Holdings` heading, and one `table._tb[role="grid"]` inside a `._tbw` wrapper. |
+| Body sections | The saved holdings table contains three separate `tbody` elements, each containing one direct holding row. The cash table has one `tbody` with multiple rows. Both shapes are supported; rows are collected from every direct body section. Version 0.1.0 incorrectly required one body for each table. |
 | Header mapping | `thead._tbh` contains one row of `th` cells, with text under `._thc`. Data headers expose `aria-colindex`; body rows contain corresponding direct `td` cells. The target column is located by normalized header text, its current physical index is checked against `aria-colindex`, and body cell counts/spans must match. There is no fixed Market Value ordinal. Decorative `div` children are not counted as cells. |
 | Market Value input | The target `td` has one native `span` wrapper containing a `div > span` for the full rendered number and a sibling `div.fs8.fg70` for that same cell's explicit currency label. Both association and exact shape are required. Extension-owned nodes are excluded. |
 | Cash | An exact `Cash Holdings` h3, inside `.ib-row.cb` / `.ib-col`, precedes a separate `table._tb[role="grid"]`. Currency and Amount are found from their own headers. The currency cell contains a flag SVG followed by the currency label. The Amount cell contains a single native span. Only exact KRW row evidence is eligible. |
@@ -23,6 +24,10 @@ The PRD and handoff establish scope. During implementation the user supplied a l
 | Broker rate | No explicit usable USD/KRW rate was established by the narrowly scoped inspection. The broker-rate adapter remains unavailable. No equation from totals, brokerage API, request interception, storage, or framework state is used. |
 
 No instrument IDs, symbol attributes, or account identifiers are used to establish eligibility.
+
+## 0.1.1 failure investigation
+
+The user's live screenshot showed `UNSUPPORTED_VIEW` and zero fields despite a saved Manual rate. A new structural audit of the existing offline capture exposed the multiple holdings body sections. The initial reconstructed fixture had incorrectly combined them, so it missed the discovery failure. The fixture now preserves the observed body boundaries using only fictional values. Running it against the original 0.1.0 bundle reproduced missing annotations; the corrected adapter passes. This identifies a concrete defect without claiming the updated build has been validated on the user's live page.
 
 ## Presentation decision
 

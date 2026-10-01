@@ -17,6 +17,8 @@ Open `http://127.0.0.1:4173/positions.html#/positions`. Change 1,350 to 1,500 KR
 
 ## Build and install
 
+**Updating from 0.1.0:** version **0.1.1** fixes `UNSUPPORTED_VIEW` on the captured grid, which contains a separate table body for each holding. Reload USD Lens in `chrome://extensions`, refresh Positions, and check that the popup header shows **v0.1.1**. Your saved Manual settings are preserved.
+
 Use Node **22.12 or later in the 22.x line**, or Node **24+**, and npm. Development was checked with Node 22.22.2 and npm 10.9.7 on Windows. Exact tool versions are pinned in `package.json` and `package-lock.json`. There are zero production dependencies.
 
 ```powershell
@@ -99,7 +101,7 @@ See [testing.md](docs/testing.md) for actual results, coverage limits, and the r
 
 The parser supports English grouped or ungrouped decimals, Unicode/ASCII minus, plus, parentheses, and surrounding nonbreaking spaces. Abbreviated values such as `270M` are skipped because no verified exact-cell precision attribute exists. Amounts and converted results are bounded to an absolute 10¹²; rates to 10⁻⁹–10⁹. Arithmetic retains native numeric precision; `Intl.NumberFormat('en-US')` rounds half away from zero for display, normalizing rounded negative zero. This is an indicative display, not ledger arithmetic.
 
-Annotations use namespaced closed shadow roots so native cell `textContent` remains unchanged. Production overlays fit entirely inside measured unused cell space without changing native styles or row heights. Underneath is preferred; a safe inline position is used when a second line would not fit (notably cash). If neither position fits, the number is withheld and the region reports an unsupported layout. Scrolling/resizing repositions overlays; clipped or covered positions are hidden. The captured-structure fixture verifies unchanged row heights and native copy text, but actual IBKR export, keyboard, virtualization, and mounting still need live validation. A framework removing an active mount stops that view's annotations rather than causing an insertion loop.
+Annotations use namespaced closed shadow roots so native cell `textContent` remains unchanged. The adapter reads every direct table-body section, including the captured one-section-per-holding layout. Production overlays fit entirely inside measured unused cell space without changing native styles or row heights. Underneath is preferred; a safe inline position is used when a second line would not fit (notably cash). If neither position fits, the number is withheld and the region reports an unsupported layout. Scrolling/resizing repositions overlays; clipped or covered positions are hidden. The captured-structure fixture verifies unchanged row heights and native copy text, but actual IBKR export, keyboard, virtualization, and mounting still need live validation. A framework removing an active mount stops that view's annotations rather than causing an insertion loop.
 
 ## Permissions and reporting
 

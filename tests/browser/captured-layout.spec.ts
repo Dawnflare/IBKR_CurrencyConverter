@@ -45,6 +45,7 @@ test.beforeEach(async () => {
 test.afterEach(async () => { await page.close(); });
 test.afterAll(async () => { await context.close(); });
 test('production selectors annotate captured structure without changing row sizes or native text', async () => {
+  await expect(page.locator('.ptf-positions table > tbody')).toHaveCount(3);
   const native = await page.locator('tbody').allTextContents();
   const heights = await page.locator('tbody tr').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
   await setup();
@@ -61,6 +62,34 @@ test('production selectors annotate captured structure without changing row size
   const copy = await page.locator('#captured-a .market').evaluate(cell => { const range = document.createRange(); range.selectNodeContents(cell); const s = getSelection()!; s.removeAllRanges(); s.addRange(range); const text = s.toString(); s.removeAllRanges(); return text; });
   expect(copy).not.toContain('US$');
   await page.screenshot({ path: 'output/playwright/captured-layout.png', fullPage: true });
+});
+
+test('separate holding bodies support updates, replacement, removal and regrouping', async () => {
+  await setup();
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(3);
+  await page.locator('#captured-b .market > span:not([data-usd-lens]) > div:first-child > span').evaluate(node => { node.textContent = '405,000,000.00'; });
+  await expect.poll(() => visibleText('#captured-b')).toContain('≈ US$300,000.00');
+  await page.locator('#captured-b').evaluate(row => {
+    const body = row.parentElement!; const table = body.parentElement as HTMLTableElement;
+    table.insertBefore(body, table.tBodies[0]!);
+  });
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(3);
+  await page.locator('#captured-b').evaluate(row => {
+    const body = row.parentElement!; const replacement = body.cloneNode(true) as HTMLElement;
+    replacement.querySelectorAll('[data-usd-lens]').forEach(node => node.remove());
+    body.replaceWith(replacement);
+  });
+  await expect.poll(() => visibleText('#captured-b')).toContain('≈ US$300,000.00');
+  await page.locator('#captured-a').evaluate(row => row.parentElement!.remove());
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(2);
+  await page.locator('#captured-b').evaluate(row => {
+    const previousBody = row.parentElement!;
+    document.getElementById('captured-usd')!.parentElement!.append(row);
+    previousBody.remove();
+  });
+  await expect(page.locator('.ptf-positions table > tbody')).toHaveCount(1);
+  await expect.poll(() => visibleText('#captured-b')).toContain('≈ US$300,000.00');
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(2);
 });
 test('production mapping follows header changes and excludes ambiguous or abbreviated cells', async () => {
   await setup(); await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(3);

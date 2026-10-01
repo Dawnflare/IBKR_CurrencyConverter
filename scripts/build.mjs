@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile, copyFile, rm } from 'node:fs/promises';
 import { resolve, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const { version } = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
 const test = process.argv.includes('--test');
 const out = resolve(root, 'dist', test ? 'test' : 'production');
 // Only these generated directories can be removed, after absolute containment checks.
@@ -11,7 +12,7 @@ await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 const hosts = ['https://api.frankfurter.dev/*', 'https://api.currencyapi.com/*'];
 const manifest = {
-  manifest_version: 3, name: `IBKR USD Lens${test ? ' — SYNTHETIC TEST ONLY' : ''}`, version: '0.1.0',
+  manifest_version: 3, name: `IBKR USD Lens${test ? ' — SYNTHETIC TEST ONLY' : ''}`, version,
   minimum_chrome_version: '114', description: 'Estimated USD annotations for KRW. Captured Positions layout supported; live-site validation pending.',
   permissions: ['storage'], optional_host_permissions: hosts,
   background: { service_worker: 'background.js', type: 'module' },
@@ -34,5 +35,5 @@ if (test) {
   for (const file of ['index.html', 'demo.css']) await copyFile(resolve(root, 'demo', file), resolve(demo, file));
 }
 // Inspectable build provenance contains source paths only, never account or key data.
-await writeFile(resolve(out, 'BUILD.txt'), `IBKR USD Lens 0.1.0\nStatus: live-site-validation-pending\nBuild: ${test ? 'synthetic fixture (never load on IBKR)' : 'production, captured Positions layout'}\nNode: ${process.version}\n`);
+await writeFile(resolve(out, 'BUILD.txt'), `IBKR USD Lens ${version}\nStatus: live-site-validation-pending\nBuild: ${test ? 'synthetic fixture (never load on IBKR)' : 'production, captured Positions layout'}\nNode: ${process.version}\n`);
 console.log(`Unpacked extension: ${out}`);
