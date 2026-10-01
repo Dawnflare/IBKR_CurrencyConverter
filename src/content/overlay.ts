@@ -11,6 +11,7 @@ export function positionOverlay(candidate: Candidate, annotation: Annotation, pr
   host.style.maxWidth = 'none'; host.style.margin = '0'; host.style.visibility = 'hidden';
   const cell = candidate.cell.getBoundingClientRect();
   const amount = textBounds(candidate.overlay.amount);
+  host.style.color = getComputedStyle(candidate.overlay.amount).color;
   const style = getComputedStyle(candidate.cell);
   const left = cell.left + parseFloat(style.paddingLeft || '0');
   const right = cell.right - parseFloat(style.paddingRight || '0');
@@ -31,7 +32,7 @@ export function positionOverlay(candidate: Candidate, annotation: Annotation, pr
   const options = preference === 'inline' ? [...inline, ...spaces] : [...spaces, ...inline];
   const space = options.find(s => s.right - s.left >= width && s.top >= cell.top + 1 && s.top + height <= cell.bottom - 2 && s.top >= 0 && s.top + height <= innerHeight);
   if (!space) return false;
-  const x = candidate.kind === 'marketValue' ? space.right - width : space.left;
+  const x = candidate.kind === 'cash' ? space.left : space.right - width;
   // Respect scroll clipping, sticky headers, and native overlays in front of the cell.
   const points = [[x + 1, space.top + 1], [x + width - 1, space.top + 1], [x + 1, space.top + height - 1], [x + width - 1, space.top + height - 1]];
   if (points.some(([px, py]) => !candidate.cell.contains(document.elementFromPoint(px!, py!)))) return false;

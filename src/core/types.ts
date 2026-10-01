@@ -15,14 +15,19 @@ export type ErrorCode = typeof ERROR_CODES[number];
 export type Mode = 'auto' | 'ecb' | 'currencyapi' | 'manual';
 export type ExternalSource = 'ecb' | 'currencyapi';
 export type Cadence = 'minute' | 'hourly' | 'daily';
+export const FIELD_KEYS = ['marketValue', 'avgPrice', 'dailyPnl', 'unrealizedPnl', 'cash'] as const;
+export type FieldKind = typeof FIELD_KEYS[number];
 export interface Settings {
-  schemaVersion: 1;
+  schemaVersion: 2;
   setupComplete: boolean;
   enabled: boolean;
   mode: Mode;
   placement: 'underneath' | 'inline';
   format: 'full' | 'compact';
   marketValue: boolean;
+  avgPrice: boolean;
+  dailyPnl: boolean;
+  unrealizedPnl: boolean;
   cash: boolean;
   ecbEnabled: boolean;
   currencyapiEnabled: boolean;
@@ -31,8 +36,8 @@ export interface Settings {
   manualEnteredAt: number | null;
 }
 export const DEFAULT_SETTINGS: Settings = {
-  schemaVersion: 1, setupComplete: false, enabled: false, mode: 'auto',
-  placement: 'underneath', format: 'full', marketValue: true, cash: true,
+  schemaVersion: 2, setupComplete: false, enabled: false, mode: 'auto',
+  placement: 'underneath', format: 'full', marketValue: true, avgPrice: true, dailyPnl: true, unrealizedPnl: true, cash: true,
   ecbEnabled: false, currencyapiEnabled: false, cadence: 'daily',
   manualRate: null, manualEnteredAt: null,
 };

@@ -1,6 +1,6 @@
 # IBKR USD Lens
 
-**Status: user-validated Positions display in Manual and ECB modes.** A private Manifest V3 extension for supplementary USD estimates of explicitly KRW Market Value and KRW Cash Holdings Amount. Conversion means local arithmetic and display. There are no trading, transfer, brokerage API, or account-management features.
+**Status: user-validated Positions display in Manual and ECB modes.** A private Manifest V3 extension for supplementary USD estimates of explicitly KRW **Market Value, Avg Price, Daily P&L, Unrealized P&L**, and **Cash Holdings Amount**. Conversion means local arithmetic and display. There are no trading, transfer, brokerage API, or account-management features.
 
 The calculation, provider worker, protected settings popup, annotation engine, synthetic demo, and production site adapter are implemented. **The production adapter supports `https://portal.interactivebrokers.com/portal/#/dashboard/positions`.** Its selectors and amount/currency associations come from the user-provided local MHTML capture. The user confirmed successful live display with both Manual and ECB daily reference after the 0.1.1 correction. Unrecognized routes/layouts and cells without safe presentation space return `UNSUPPORTED_VIEW`. Detailed test coverage is recorded in [testing.md](docs/testing.md). The private reference capture is excluded from Git; only manually constructed fictional fixtures are included. No IBKR page rate has been verified, so that source is unavailable.
 
@@ -17,7 +17,7 @@ Open `http://127.0.0.1:4173/positions.html#/positions`. Change 1,350 to 1,500 KR
 
 ## Build and install
 
-**Updating:** version **0.1.2** removes the validation warning following the user's successful live checks and adds the USD Lens icon. It includes the 0.1.1 fix for multiple holdings table-body sections. Reload USD Lens in `chrome://extensions`, refresh Positions, and check that the popup header shows **v0.1.2**. Your saved settings are preserved.
+**Updating:** version **0.1.3** adds Avg Price, Daily P&L, and Unrealized P&L estimates and changes the icon's currency mark to **₩**. The new columns default to enabled; saved sources, rates, consent, and existing field preferences are preserved. Reload USD Lens in `chrome://extensions`, refresh Positions, and check that the popup header shows **v0.1.3**.
 
 Use Node **22.12 or later in the 22.x line**, or Node **24+**, and npm. Development was checked with Node 22.22.2 and npm 10.9.7 on Windows. Exact tool versions are pinned in `package.json` and `package-lock.json`. There are zero production dependencies.
 
@@ -51,6 +51,12 @@ The initial choice is **Auto**, in a setup-needed state. Estimates and external 
 Keys default to **session-only storage** and disappear on browser restart or extension reload/update/disable. **Remember on this device** uses ordinary local extension storage, not an encrypted credential vault. Use **Delete key** to remove either saved key and its provider cache. **Clear all saved data** removes preferences, manual rate, external caches/retry state, and keys, and returns to setup. Browser-granted host permissions can be revoked using the source buttons or Chrome's extension settings.
 
 The **Show USD estimates** switch takes effect immediately after setup. It removes annotations and stops relevant work. Browser-level disabling/removal can leave previously inserted DOM until the page is reloaded; reload the page after uninstalling or disabling through Chrome.
+
+## Supported fields
+
+**Display preferences** provides an independent toggle for Market Value, Avg Price, Daily P&L, Unrealized P&L, and Cash Holdings Amount. All five are enabled by default. Only cells explicitly labeled KRW are eligible. Missing, hidden, ambiguous, or disabled columns do not block other supported columns.
+
+Every estimate divides its displayed KRW amount by the same selected KRW-per-USD rate. Avg Price is a per-unit price estimate. P&L annotations translate the native displayed P&L amount at the selected FX rate; they do not calculate a separate historical USD investment return. Native values, signs, and colors remain intact, and estimates match their native amount's text color. The added columns were requested after the original PRD and extend its initial Market Value/cash scope.
 
 ## Freshness and failures
 

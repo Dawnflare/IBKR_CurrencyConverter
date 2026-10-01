@@ -25,8 +25,18 @@ describe('trust boundaries', () => {
   it('validates settings with exact keys and primitive enums', () => {
     const { schemaVersion: _schema, setupComplete: _setup, manualEnteredAt: _entered, ...input } = DEFAULT_SETTINGS;
     expect(settingsInput(input)).toEqual(input);
-    for (const change of [{ mode: ['auto'] }, { enabled: 'true' }, { manualRate: 0 }, { mode: 'manual', manualRate: null }, { key: 'unexpected' }]) expect(() => settingsInput({ ...input, ...change })).toThrow();
-    expect(restoreSettings({ ...DEFAULT_SETTINGS, schemaVersion: 2 })).toEqual(DEFAULT_SETTINGS);
+    for (const change of [{ mode: ['auto'] }, { enabled: 'true' }, { avgPrice: 'true' }, { dailyPnl: null }, { unrealizedPnl: 1 }, { manualRate: 0 }, { mode: 'manual', manualRate: null }, { key: 'unexpected' }]) expect(() => settingsInput({ ...input, ...change })).toThrow();
+    expect(restoreSettings({ ...DEFAULT_SETTINGS, schemaVersion: 3 })).toEqual(DEFAULT_SETTINGS);
+  });
+  it.each(['manual', 'ecb'] as const)('migrates old %s settings without resetting source, consent or rate time', mode => {
+    const { avgPrice: _avg, dailyPnl: _daily, unrealizedPnl: _unrealized, ...old } = DEFAULT_SETTINGS;
+    const saved = { ...old, schemaVersion: 1, setupComplete: true, enabled: true, mode, manualRate: 1350, manualEnteredAt: 123456789, ecbEnabled: true, marketValue: false, cash: false };
+    expect(restoreSettings(saved)).toEqual({ ...saved, schemaVersion: 2, avgPrice: true, dailyPnl: true, unrealizedPnl: true });
+  });
+  it('keeps disabled new fields across restoration and rejects malformed current settings', () => {
+    const settings = { ...DEFAULT_SETTINGS, setupComplete: true, avgPrice: false, dailyPnl: false, unrealizedPnl: false };
+    expect(restoreSettings(settings)).toEqual(settings);
+    expect(restoreSettings({ ...settings, avgPrice: undefined })).toEqual(DEFAULT_SETTINGS);
   });
   it('checks the captured route before reading any DOM', () => {
     expect(adapter.available).toBe(true); expect(adapter.verified).toBe(true);

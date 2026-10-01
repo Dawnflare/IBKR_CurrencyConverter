@@ -1,11 +1,11 @@
 import { parseAmount } from '../core/numbers';
-import { DEFAULT_SETTINGS, MINUTE, LensError, type ErrorCode, type RateResult, type Settings } from '../core/types';
+import { DEFAULT_SETTINGS, FIELD_KEYS, MINUTE, LensError, type ErrorCode, type RateResult, type Settings } from '../core/types';
 import type { ViewStatus } from '../core/messages';
 import type { Candidate, Region, SiteAdapter, SiteView } from '../site/adapter';
 import { createAnnotation, createRegionStatus, OWNED, updateAnnotation, updateRegionStatus, type Annotation, type RegionStatus } from './presentation';
 import { positionOverlay } from './overlay';
 
-interface Field { candidate: Candidate; amount: number; annotation: Annotation; }
+interface Field { candidate: Candidate; region: Region; amount: number; annotation: Annotation; }
 export interface EngineBridge {
   rate: (generation: number) => Promise<RateResult>;
   release: (generation: number) => void;
@@ -112,8 +112,9 @@ export class LensEngine {
     if (!this.view || document.hidden) return;
     const hadFields = this.fields.size > 0;
     this.regionCode = null;
+    const enabled = new Set(FIELD_KEYS.filter(kind => this.settings[kind]));
     for (const [region, rows] of this.dirty) {
-      const read = this.adapter.read(region, rows);
+      const read = this.adapter.read(region, rows, enabled);
       this.regionCode ??= read.code;
       const seen = new Set<HTMLElement>();
       for (const candidate of read.candidates) {
@@ -128,10 +129,10 @@ export class LensEngine {
           const previous = this.fields.get(candidate.cell);
           if (previous && (previous.candidate.mount !== candidate.mount || !previous.annotation.host.isConnected)) this.remove(candidate.cell);
           const annotation = this.fields.get(candidate.cell)?.annotation ?? createAnnotation(candidate.mount);
-          this.fields.set(candidate.cell, { candidate, amount, annotation });
+          this.fields.set(candidate.cell, { candidate, region, amount, annotation });
         } catch (error) { this.remove(candidate.cell); this.diagnostics.set(candidate.cell, error instanceof LensError ? error.code : 'AMOUNT_INVALID'); }
       }
-      for (const [cell, field] of this.fields) if (!cell.isConnected || field.candidate.kind === region.kind && (!rows || rows.has(field.candidate.row)) && !seen.has(cell)) this.remove(cell);
+      for (const [cell, field] of this.fields) if (!cell.isConnected || field.region.root === region.root && (!rows || rows.has(field.candidate.row)) && !seen.has(cell)) this.remove(cell);
       for (const cell of this.diagnostics.keys()) if (!cell.isConnected || region.root.contains(cell) && !seen.has(cell) && (!rows || rows.has(this.adapter.rowFor(cell)!))) this.diagnostics.delete(cell);
     }
     this.dirty.clear(); this.render();
@@ -148,7 +149,7 @@ export class LensEngine {
       catch { this.remove(field.candidate.cell); this.diagnostics.set(field.candidate.cell, 'AMOUNT_UNSAFE'); }
     }
     for (const status of this.statuses) {
-      const fields = [...this.fields.values()].filter(field => field.candidate.kind === status.region.kind);
+      const fields = [...this.fields.values()].filter(field => field.region.root === status.region.root);
       const unavailable = fields.length > 0 && fields.every(field => field.annotation.host.style.visibility === 'hidden');
       updateRegionStatus(status, this.settings, unavailable ? { rate: null, code: 'UNSUPPORTED_VIEW', connection: 'error', nextAttemptAt: null } : this.result, this.sourceChanged);
     }

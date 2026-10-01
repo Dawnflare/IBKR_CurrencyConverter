@@ -10,7 +10,7 @@ let extensionId: string;
 let profile: string;
 const extensionPath = resolve('dist/test');
 const fixtureURL = 'http://127.0.0.1:4173/positions.html?extension=1#/positions';
-const manualInput = { enabled: true, mode: 'manual', placement: 'underneath', format: 'full', marketValue: true, cash: true, ecbEnabled: false, currencyapiEnabled: false, cadence: 'daily', manualRate: 1350 };
+const manualInput = { enabled: true, mode: 'manual', placement: 'underneath', format: 'full', marketValue: true, avgPrice: false, dailyPnl: false, unrealizedPnl: false, cash: true, ecbEnabled: false, currencyapiEnabled: false, cadence: 'daily', manualRate: 1350 };
 async function message<T = unknown>(value: unknown): Promise<T> {
   const reply = await popup.evaluate(async value => chrome.runtime.sendMessage(value), value) as { ok: boolean; data: T; code?: string };
   expect(reply.ok, reply.code).toBe(true); return reply.data;
@@ -296,13 +296,20 @@ test('permission decline and revocation preserve manual operation and clear exte
   await expect.poll(() => rendered('#equity-a')).toContain('USD unavailable');
   await configure(); await expect.poll(() => rendered('#equity-a')).toContain('≈ US$200,000.00');
 });
-test('a browser restart recreates the service worker with its external cache', async () => {
+test('a browser restart preserves external cache and migrates older column settings', async () => {
   await worker.evaluate(() => {
     chrome.permissions.contains = async () => true;
     globalThis.fetch = async () => new Response(JSON.stringify({ date: new Date().toISOString().slice(0, 10), base: 'USD', quote: 'KRW', rate: 1350 }), { headers: { 'content-type': 'application/json' } });
   });
   await configure({ mode: 'ecb', ecbEnabled: true }); await expect.poll(() => rendered('#equity-a')).toContain('≈ US$200,000.00');
   const before = await worker.evaluate(async () => (await chrome.storage.local.get('rates')).rates);
+  const legacy = await worker.evaluate(async () => {
+    const current = (await chrome.storage.local.get('settings')).settings as Record<string, unknown>;
+    const { avgPrice: _avg, dailyPnl: _daily, unrealizedPnl: _unrealized, ...settings } = current;
+    const previous = { ...settings, schemaVersion: 1 };
+    await chrome.storage.local.set({ settings: previous });
+    return previous;
+  });
   await context.close();
   await launch();
   popup = await context.newPage();
@@ -310,7 +317,8 @@ test('a browser restart recreates the service worker with its external cache', a
   page = await context.newPage();
   // Restore a test-only permission grant; no fetch mock is needed for a cached read.
   await worker.evaluate(() => { chrome.permissions.contains = async () => true; globalThis.fetch = async () => { throw new Error('Must use persisted cache'); }; });
-  const response = await message<{ lastRate: { rate: { rate: number } } }>({ type: 'getState' });
+  const response = await message<{ settings: unknown; lastRate: { rate: { rate: number } } }>({ type: 'getState' });
   expect(response.lastRate.rate.rate).toBe(1350);
+  expect(response.settings).toEqual({ ...legacy, schemaVersion: 2, avgPrice: true, dailyPnl: true, unrealizedPnl: true });
   expect(await worker.evaluate(async () => (await chrome.storage.local.get('rates')).rates)).toEqual(before);
 });

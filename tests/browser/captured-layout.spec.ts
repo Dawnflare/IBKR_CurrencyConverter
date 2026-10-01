@@ -5,7 +5,8 @@ let context: BrowserContext;
 let page: Page;
 let popup: Page;
 const url = 'https://portal.interactivebrokers.com/portal/#/dashboard/positions';
-const manual = { enabled: true, mode: 'manual', placement: 'underneath', format: 'full', marketValue: true, cash: true, ecbEnabled: false, currencyapiEnabled: false, cadence: 'daily', manualRate: 1350 };
+const manual = { enabled: true, mode: 'manual', placement: 'underneath', format: 'full', marketValue: true, avgPrice: false, dailyPnl: false, unrealizedPnl: false, cash: true, ecbEnabled: false, currencyapiEnabled: false, cadence: 'daily', manualRate: 1350 };
+const allColumns = { avgPrice: true, dailyPnl: true, unrealizedPnl: true };
 async function setup(changes: Record<string, unknown> = {}): Promise<void> {
   const response = await popup.evaluate(async settings => chrome.runtime.sendMessage({ type: 'saveSettings', settings }), { ...manual, ...changes });
   expect(response.ok).toBe(true); await page.bringToFront();
@@ -62,6 +63,79 @@ test('production selectors annotate captured structure without changing row size
   const copy = await page.locator('#captured-a .market').evaluate(cell => { const range = document.createRange(); range.selectNodeContents(cell); const s = getSelection()!; s.removeAllRanges(); s.addRange(range); const text = s.toString(); s.removeAllRanges(); return text; });
   expect(copy).not.toContain('US$');
   await page.screenshot({ path: 'output/playwright/captured-layout.png', fullPage: true });
+});
+
+test('all four KRW holding columns use the same rate without changing native values or geometry', async () => {
+  const original = await page.locator('tbody').allTextContents();
+  const heights = await page.locator('tbody tr').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
+  await setup(allColumns);
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(9);
+  for (const [selector, estimate] of [
+    ['#captured-a .market', '≈ US$200,000.00'], ['#captured-a .avg-price', '≈ US$1,000.00'],
+    ['#captured-a .daily-pnl', '≈ US$2,000.00'], ['#captured-a .unrealized-pnl', '≈ US$10,000.00'],
+    ['#captured-b .avg-price', '≈ US$200.00'], ['#captured-b .unrealized-pnl', '≈ −US$5,000.00'],
+  ]) await expect.poll(() => visibleText(selector!)).toContain(estimate!);
+  await expect(page.locator('#captured-usd [data-usd-lens], .cash-total [data-usd-lens], td.cost-basis [data-usd-lens]')).toHaveCount(0);
+  expect(await page.locator('tbody').allTextContents()).toEqual(original);
+  expect(await page.locator('tbody tr').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height))).toEqual(heights);
+  const copied = await page.locator('#captured-a').evaluate(row => {
+    const range = document.createRange(); range.selectNodeContents(row); const selection = getSelection()!;
+    selection.removeAllRanges(); selection.addRange(range); const text = selection.toString(); selection.removeAllRanges(); return text;
+  });
+  expect(copied).not.toContain('US$');
+  const colorsMatch = await page.locator('.daily-pnl, .unrealized-pnl').evaluateAll(cells => cells.every(cell => {
+    const estimate = cell.querySelector('[data-usd-lens]'); const amount = cell.querySelector('span:not([data-usd-lens])');
+    return !estimate || getComputedStyle(estimate).color === getComputedStyle(amount!).color;
+  }));
+  expect(colorsMatch).toBe(true);
+  await page.screenshot({ path: 'output/playwright/all-columns.png', fullPage: true });
+  await setup({ ...allColumns, manualRate: 1500 });
+  await expect.poll(() => visibleText('#captured-a .avg-price')).toContain('≈ US$900.00');
+  await expect.poll(() => visibleText('#captured-b .unrealized-pnl')).toContain('≈ −US$4,500.00');
+});
+
+test('added columns update independently, keep signs, and exclude ambiguous or abbreviated input', async () => {
+  await setup(allColumns); await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(9);
+  await page.locator('#captured-b .daily-pnl > span:not([data-usd-lens])').evaluate(node => { node.textContent = '(1,350,000.00)'; node.setAttribute('class', '_nneg'); });
+  await expect.poll(() => visibleText('#captured-b .daily-pnl')).toContain('≈ −US$1,000.00');
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(9);
+  await page.locator('#captured-a .avg-price > span:not([data-usd-lens])').evaluate(node => { node.textContent = '1.35M'; });
+  await expect(page.locator('#captured-a .avg-price [data-usd-lens]')).toHaveCount(0);
+  await page.locator('#captured-a .daily-pnl > .fs8').evaluate(node => { node.textContent = 'KRW / USD'; });
+  await expect(page.locator('#captured-a .daily-pnl [data-usd-lens]')).toHaveCount(0);
+  await page.locator('#captured-b .unrealized-pnl > .fs8').evaluate(node => { node.textContent = 'USD'; });
+  await expect(page.locator('#captured-b .unrealized-pnl [data-usd-lens]')).toHaveCount(0);
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(6);
+  await page.locator('#captured-b .avg-price > span:not([data-usd-lens])').evaluate(node => { node.textContent = '0.00'; });
+  await expect.poll(() => visibleText('#captured-b .avg-price')).toContain('≈ US$0.00');
+});
+
+test('new column header mapping and popup toggles are independent of Market Value', async () => {
+  await setup({ ...allColumns, marketValue: false, cash: false });
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(6);
+  await page.locator('.ptf-positions table').evaluate(table => {
+    const grid = table as HTMLTableElement;
+    const avg = [...grid.tHead!.rows[0]!.cells].findIndex(header => header.textContent?.trim() === 'Avg Price');
+    for (const row of grid.rows) row.insertBefore(row.cells[avg]!, row.cells[3]!);
+    [...grid.tHead!.rows[0]!.cells].forEach((cell, index) => cell.setAttribute('aria-colindex', String(index + 1)));
+  });
+  await expect.poll(() => visibleText('#captured-a .avg-price')).toContain('≈ US$1,000.00');
+  await page.locator('.ptf-positions table').evaluate(table => {
+    table.querySelectorAll('.market').forEach(cell => cell.remove());
+    [...(table as HTMLTableElement).tHead!.rows[0]!.cells].forEach((cell, index) => cell.setAttribute('aria-colindex', String(index + 1)));
+  });
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(6);
+  await page.locator('th.daily-pnl').evaluate(header => { (header as HTMLElement).style.visibility = 'hidden'; });
+  await expect.poll(() => page.locator('[data-usd-lens=estimate]').evaluateAll(hosts => hosts.map(host => `${host.closest('tr')!.id}/${host.parentElement!.className}/${getComputedStyle(host).visibility}`).sort())).toEqual([
+    'captured-a/avg-price/visible', 'captured-a/unrealized-pnl/visible', 'captured-b/avg-price/visible', 'captured-b/unrealized-pnl/visible',
+  ]);
+  await popup.reload(); await popup.locator('.preferences summary').click();
+  await expect(popup.locator('#avgPrice')).toBeChecked();
+  await popup.locator('#avgPrice').uncheck(); await popup.locator('#save').click(); await page.bringToFront();
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(2);
+  await expect(page.locator('.unrealized-pnl [data-usd-lens=estimate]:visible')).toHaveCount(2);
+  await popup.reload(); await expect(popup.locator('#avgPrice')).not.toBeChecked();
+  await expect(popup.locator('#unrealizedPnl')).toBeChecked();
 });
 
 test('separate holding bodies support updates, replacement, removal and regrouping', async () => {
@@ -145,5 +219,20 @@ test('production overlays respect covering UI and target desktop zoom levels', a
       const a = host.getBoundingClientRect(); const c = host.closest('td')!.getBoundingClientRect();
       return getComputedStyle(host).visibility === 'visible' && a.left >= c.left && a.right <= c.right && a.top >= c.top && a.bottom <= c.bottom;
     }))).toBe(true);
+  }
+});
+
+test('all added columns fit safely at desktop zoom levels in both themes', async () => {
+  await setup(allColumns);
+  for (const [width, zoom] of [[1280, 1], [1440, 1.25], [1920, 1.5]] as const) {
+    await page.setViewportSize({ width, height: 1100 }); await page.bringToFront();
+    await popup.evaluate(async zoom => { const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true }); if (tab?.id !== undefined) await chrome.tabs.setZoom(tab.id, zoom); }, zoom);
+    for (const light of [false, true]) {
+      await page.evaluate(light => document.body.classList.toggle('light', light), light);
+      await expect.poll(() => page.locator('[data-usd-lens=estimate]').evaluateAll(hosts => hosts.length === 9 && hosts.every(host => {
+        const a = host.getBoundingClientRect(); const c = host.closest('td')!.getBoundingClientRect();
+        return getComputedStyle(host).visibility === 'visible' && a.left >= c.left && a.right <= c.right && a.top >= c.top && a.bottom <= c.bottom;
+      }))).toBe(true);
+    }
   }
 });

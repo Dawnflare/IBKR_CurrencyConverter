@@ -1,10 +1,10 @@
 # Privacy and data boundaries
 
-IBKR USD Lens 0.1.2 is a private, locally installed display extension. Its production adapter supports a layout established from a local user-provided capture. The user confirmed live display in Manual and ECB modes after the 0.1.1 correction. Other routes/layouts fail closed.
+IBKR USD Lens 0.1.3 is a private, locally installed display extension. Its production adapter supports a layout established from a local user-provided capture. The user confirmed live display in Manual and ECB modes after the 0.1.1 correction and later requested the added price/P&L fields. Other routes/layouts fail closed.
 
 ## Information handled locally
 
-The content script reads only supported KRW Market Value and cash Amount cells and their explicit currency evidence on the captured Positions route. Amounts and DOM references stay transiently in that tab's memory. They are never sent to the worker, popup, providers, logs, or persistent storage. Field counts and allowlisted error codes are the only view diagnostics returned to the popup. Development fixtures use fictional data exclusively. The supplied raw MHTML and screenshot stay in the ignored `=reference_material` directory and are not part of source or build artifacts.
+The content script reads enabled Market Value, Avg Price, Daily P&L, Unrealized P&L, and cash Amount cells and their explicit currency evidence on the supported Positions route. Only explicit KRW values are converted. Amounts and DOM references stay transiently in that tab's memory. They are never sent to the worker, popup, providers, logs, or persistent storage. Field counts and allowlisted error codes are the only view diagnostics returned to the popup. Development fixtures use fictional data exclusively. The supplied raw MHTML and screenshot stay in the ignored `=reference_material` directory and are not part of source or build artifacts.
 
 Preferences, manual rate and confirmation time, public external FX records, cooldowns, and retry metadata use `chrome.storage.local`. A user-supplied currencyapi key defaults to `chrome.storage.session`; remembering it is an explicit choice. Both storage areas are restricted to `TRUSTED_CONTEXTS` before use. There is no browser sync storage. Keys are returned to neither content scripts nor popup state responses. A popup can replace/delete a key but cannot read it back through the worker API.
 

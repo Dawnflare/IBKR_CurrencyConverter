@@ -1,6 +1,6 @@
 import { send, type PopupState, type ViewStatus } from '../core/messages';
 import { freshness, rateDetails, sourceLabel } from '../core/rates';
-import { LensError, type ErrorCode, type RateResult } from '../core/types';
+import { FIELD_KEYS, LensError, type ErrorCode, type RateResult } from '../core/types';
 import type { SettingsInput } from '../core/settings';
 import { HOSTS } from '../worker/providers';
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -33,7 +33,7 @@ function modeUI(): void {
 function render(next: PopupState): void {
   state = next;
   const s = state.settings;
-  for (const name of ['enabled', 'marketValue', 'cash'] as const) input(name).checked = s[name];
+  for (const name of ['enabled', ...FIELD_KEYS] as const) input(name).checked = s[name];
   if (!s.setupComplete) input('enabled').checked = true;
   select('mode').value = s.mode; select('placement').value = s.placement; select('format').value = s.format; select('cadence').value = s.cadence;
   input('manualRate').value = s.manualRate?.toString() ?? '';
@@ -73,6 +73,7 @@ $('settingsForm').addEventListener('submit', event => {
       enabled: input('enabled').checked, mode: select('mode').value as SettingsInput['mode'],
       placement: select('placement').value as SettingsInput['placement'], format: select('format').value as SettingsInput['format'],
       marketValue: input('marketValue').checked, cash: input('cash').checked,
+      avgPrice: input('avgPrice').checked, dailyPnl: input('dailyPnl').checked, unrealizedPnl: input('unrealizedPnl').checked,
       ecbEnabled: state.settings.ecbEnabled, currencyapiEnabled: state.settings.currencyapiEnabled,
       cadence: select('cadence').value as SettingsInput['cadence'], manualRate: input('manualRate').value ? Number(input('manualRate').value) : null,
     };

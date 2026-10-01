@@ -13,5 +13,5 @@
   <rect x="4.75" y="4.75" width="118.5" height="118.5" rx="28.25" fill="none" stroke="#fff" stroke-opacity=".13" stroke-width="1.5"/>
   <path d="M78 77 102 101" fill="none" stroke="#edcb7f" stroke-width="14" stroke-linecap="round"/>
   <circle cx="55" cy="53" r="31" fill="url(#glass)" stroke="#f4f6e9" stroke-width="9"/>
-  <path d="M65 41C60 36 46 37 46 45C46 53 65 51 65 60C65 69 50 71 44 65M55 32V75" fill="none" stroke="#edcb7f" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M38 37 45 69 55 45 65 69 72 37M35 49H75M36 57H74" fill="none" stroke="#edcb7f" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

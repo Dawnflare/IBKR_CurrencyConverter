@@ -1,5 +1,13 @@
 # Change log
 
+## 0.1.3 — 2026-10-01
+
+- Changed the icon's currency mark from dollar to Korean won (₩) at every PNG size.
+- Added USD estimates for explicitly KRW Avg Price, Daily P&L, and Unrealized P&L at the user's request, using amount/currency structures verified in the existing offline capture.
+- Added independent display toggles, enabled by default, with migration preserving existing sources, rates, consent, and field preferences.
+- Kept one observer/status per region and one selected FX rate across all fields. Column mapping remains independent and follows header changes; estimates preserve negative values and match native amount colors.
+- Added migration and multi-column regression coverage with fictional data, including native text/row-height preservation, toggles, ambiguous input, and desktop zoom/themes.
+
 ## 0.1.2
 
 - Removed the live-validation warning and pending status after the user confirmed successful live Manual and ECB display.

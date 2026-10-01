@@ -18,12 +18,15 @@ The PRD and handoff establish scope. During implementation the user supplied a l
 | Body sections | The saved holdings table contains three separate `tbody` elements, each containing one direct holding row. The cash table has one `tbody` with multiple rows. Both shapes are supported; rows are collected from every direct body section. Version 0.1.0 incorrectly required one body for each table. |
 | Header mapping | `thead._tbh` contains one row of `th` cells, with text under `._thc`. Data headers expose `aria-colindex`; body rows contain corresponding direct `td` cells. The target column is located by normalized header text, its current physical index is checked against `aria-colindex`, and body cell counts/spans must match. There is no fixed Market Value ordinal. Decorative `div` children are not counted as cells. |
 | Market Value input | The target `td` has one native `span` wrapper containing a `div > span` for the full rendered number and a sibling `div.fs8.fg70` for that same cell's explicit currency label. Both association and exact shape are required. Extension-owned nodes are excluded. |
+| Avg Price and P&L inputs | At the user's request, the same offline capture was inspected for `Avg Price`, `Daily P&L`, and `Unrealized P&L`. Each target `td` has a direct amount `span` and a sibling `div.fs8.fg70` containing that cell's explicit currency. The captured P&L spans use `_npos` or `_nneg`; currency eligibility always comes from the label, not the color/class. No original values were copied. |
 | Cash | An exact `Cash Holdings` h3, inside `.ib-row.cb` / `.ib-col`, precedes a separate `table._tb[role="grid"]`. Currency and Amount are found from their own headers. The currency cell contains a flag SVG followed by the currency label. The Amount cell contains a single native span. Only exact KRW row evidence is eligible. |
 | Cash total | The account-wide `Total Cash (in USD)` presentation is outside the eligible cash rows and is not annotated. |
 | Precision | Full rendered English-format numbers are available in the captured target fields. No additional full-precision attribute was established. Abbreviations remain unavailable. |
 | Broker rate | No explicit usable USD/KRW rate was established by the narrowly scoped inspection. The broker-rate adapter remains unavailable. No equation from totals, brokerage API, request interception, storage, or framework state is used. |
 
 No instrument IDs, symbol attributes, or account identifiers are used to establish eligibility.
+
+Each enabled holding field has its own header mapping and current `aria-colindex` check. A hidden or missing field does not disable the others. All four holding columns share one scoped observer and regional status, while all supported fields in the view use the same rate. Version 0.1.3 adds these columns under the user's explicit scope expansion; their fixtures include positive/negative/zero values, currency ambiguity, column movement, and display toggles.
 
 ## 0.1.1 failure investigation
 

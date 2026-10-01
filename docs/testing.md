@@ -1,6 +1,6 @@
 # Test report and coverage
 
-Version: **0.1.2**. Status: **user-validated Positions display in Manual and ECB modes**. Automated test data is fictional. No brokerage session, real account, personal browser profile, or real currencyapi key was used by automation.
+Version: **0.1.3**. Status: **user-validated Market Value/cash display in Manual and ECB modes; added price/P&L fields tested on captured structure**. Automated test data is fictional. No brokerage session, real account, personal browser profile, or real currencyapi key was used by automation.
 
 ## User-confirmed live checks
 
@@ -12,16 +12,16 @@ After installing 0.1.1, the user confirmed that Manual mode works on the live Po
 - Node 22.22.2, npm 10.9.7.
 - TypeScript 7.0.2, esbuild 0.28.2, Vitest 5.0.3, Playwright 1.63.0.
 - Bundled Chromium 153.0.8010.12 in disposable persistent contexts.
-- Execution on September 30, 2026 PDT / October 1, 2026 UTC.
+- Latest full run: October 1, 2026 (PDT and UTC). Historical 0.1.0 smoke evidence is dated separately below.
 
 ## Executed checks
 
 | Check | Result / scope |
 | --- | --- |
 | `npm run typecheck` | Passed strict checking. |
-| `npm test` | 105 tests passed across 5 files. |
+| `npm test` | 108 tests passed across 5 files, including legacy settings migration and new field validation. |
 | `npm run build` / `npm run build:test` | Passed. Production and fixture bundles are separate; the production dependency graph excludes the fixture adapter. |
-| Chromium browser tests | 22 tests passed: 6 using the production build with reconstructed captured structure, and 16 using the separate synthetic build. Coverage includes multiple body sections, golden annotations, native text/copy preservation, row geometry, value changes, accounting signs, row reuse/detachment, sort/reorder/hide, field settings, navigation/remount, popup off/setup/reset, actual toolbar-popup sizing/status, storage isolation, message rejection, and shared caches. |
+| Chromium browser tests | 26 tests passed: 10 using the production build with reconstructed captured structure, and 16 using the separate synthetic build. Coverage includes all four holding columns, independent mappings/toggles, multiple body sections, golden annotations, native text/copy preservation, row geometry, value changes, accounting signs, row reuse/detachment, sort/reorder/hide, navigation/remount, popup off/setup/reset, actual toolbar-popup sizing/status, storage isolation, message rejection, shared caches, and migration across browser restart. |
 | Production manifest/bundle inspection | Only storage and the specified origins; no localhost, fixture selectors, remote scripts, or convenience permissions in production. PNG signatures/dimensions and toolbar icon registration checked for all five sizes. Popup image loading and removal of the pending warning passed. |
 | Public FX smoke | Passed on 0.1.0 at `2026-10-01T05:46:38Z`: production worker code in a disposable Chromium profile fetched the fixed ECB-filtered endpoint, returning source date `2026-09-30` and KRW-per-USD rate `1355.4`. This is historical test evidence, not a current quote. Not repeated after 0.1.0; provider code is unchanged. The user subsequently confirmed live ECB operation on 0.1.1. |
 | Install audit | npm reported 0 known vulnerabilities at initial dependency installation. This is not a security guarantee. |
@@ -32,7 +32,7 @@ Automated provider failures include timeout, offline/network errors, authenticat
 
 ## Performance and presentation
 
-A 200-row synthetic holdings table plus cash was tested with a cached/manual rate. The 0.1.2 full run showed **251 ms** to annotate 200 rows and **247 ms** for a single-cell update. DevTools observed **2 inserted text nodes** for that update. Four successive 200-row view replacements maintained the expected 201 estimate nodes without duplicates. These are local synthetic timings, not IBKR performance guarantees. Detached field references are cleared by lifecycle teardown; this run is not a comprehensive heap-leak proof or a hardware-independent benchmark.
+A 200-row synthetic holdings table plus cash was tested with a cached/manual rate. The 0.1.3 full run showed **249 ms** to annotate 200 rows and **225 ms** for a single-cell update. This timing fixture enables Market Value and cash only. DevTools observed **2 inserted text nodes** for that update. Four successive 200-row view replacements maintained the expected 201 estimate nodes without duplicates. These are local synthetic timings, not IBKR performance guarantees. Detached field references are cleared by lifecycle teardown; this run is not a comprehensive heap-leak proof or a hardware-independent benchmark.
 
 Browser zoom was set through `chrome.tabs.setZoom` at 100%, 125%, and 150%, with viewport widths 1280, 1440, and 1920 respectively. Light and dark screenshots are in `output/playwright/`. Assertions check page overflow and rendered amounts. Closed shadow-root text is inspected through DevTools in the disposable fixture browser, without adding production test hooks. The golden fixture verifies unchanged native `textContent` and selected-copy text. Live IBKR export/sort behavior is still unverified.
 
@@ -49,6 +49,8 @@ The user reported that 0.1.0 showed `UNSUPPORTED_VIEW` with zero fields on the l
 The popup's root/body now have a stable 390-pixel intrinsic width. A narrow initial viewport regression and an actual toolbar popup opened through [Chrome's action API](https://developer.chrome.com/docs/extensions/reference/api/action#method-openPopup) both pass in disposable Chromium. The toolbar test verifies no horizontal overflow and correct active fixture field counts. It does not validate the user's OS scaling or branded Chrome configuration.
 
 ## Acceptance coverage
+
+The user's 0.1.3 request expands the original PRD to Avg Price, Daily P&L, and Unrealized P&L. The production fixture now exercises nine estimates across two KRW holdings and KRW cash, with all four holding columns enabled. Tests cover shared-rate updates, negative and accounting signs, zero, skipped abbreviations, exact-cell currency ambiguity, native text/copy and row-height preservation, inherited amount colors, moved/removed/hidden headers, independent popup toggles, and all target zoom levels in light/dark themes. The worker restart test migrates a schema-1 configuration while preserving its ECB source and cache; unit cases also preserve a manual rate's entry time. These added columns have not yet received a separate live user confirmation.
 
 | PRD acceptance IDs | Automated evidence | Remaining live/manual evidence |
 | --- | --- | --- |
