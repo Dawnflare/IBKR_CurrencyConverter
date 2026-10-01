@@ -1,6 +1,6 @@
 # Discovery and evidence
 
-Status: **live-site-validation-pending**. Production selectors are grounded in the user's local September 30 capture. A saved page establishes structure, not current live interaction, virtualization, or account-switch behavior.
+Status: **user-validated Positions display in Manual and ECB modes**. Production selectors are grounded in the user's local September 30 capture. After the 0.1.1 correction, the user confirmed successful live operation first with Manual and then with ECB daily reference. Detailed coverage and checks not individually reported remain in `testing.md`.
 
 ## Inputs and privacy
 
@@ -27,7 +27,7 @@ No instrument IDs, symbol attributes, or account identifiers are used to establi
 
 ## 0.1.1 failure investigation
 
-The user's live screenshot showed `UNSUPPORTED_VIEW` and zero fields despite a saved Manual rate. A new structural audit of the existing offline capture exposed the multiple holdings body sections. The initial reconstructed fixture had incorrectly combined them, so it missed the discovery failure. The fixture now preserves the observed body boundaries using only fictional values. Running it against the original 0.1.0 bundle reproduced missing annotations; the corrected adapter passes. This identifies a concrete defect without claiming the updated build has been validated on the user's live page.
+The user's live screenshot showed `UNSUPPORTED_VIEW` and zero fields despite a saved Manual rate. A new structural audit of the existing offline capture exposed the multiple holdings body sections. The initial reconstructed fixture had incorrectly combined them, so it missed the discovery failure. The fixture now preserves the observed body boundaries using only fictional values. Running it against the original 0.1.0 bundle reproduced missing annotations; the corrected adapter passes. The user subsequently confirmed that the fix works on the live page.
 
 ## Presentation decision
 
@@ -46,8 +46,8 @@ Captured-structure tests establish that this strategy preserves fixture row heig
 - [Chrome storage](https://developer.chrome.com/docs/extensions/reference/api/storage): both local and session areas are restricted to trusted contexts before use.
 - [Playwright extensions](https://playwright.dev/docs/chrome-extensions): bundled Chromium and fresh persistent profiles; no user profile or brokerage login is used.
 
-## Remaining user-assisted validation
+## Additional live coverage
 
-Load `dist/production`, choose Manual initially or explicitly enable ECB reference, and inspect the actual Positions view. Verify both target fields, safe placement, row heights, native sorting/filtering/copy/export, keyboard behavior, zoom/themes, scrolling/virtualization, account/view replacement, and disable/re-enable. The user controls login and performs only display/navigation checks. Never test orders, transfers, or account changes.
+Basic live display in Manual and ECB modes is user-confirmed. Detailed checks for native sorting/filtering/copy/export, keyboard behavior, all zoom/theme combinations, scrolling/virtualization, account/view replacement, and disable/re-enable were not individually reported. For further checks, the user controls login and performs only display/navigation actions. Never test orders, transfers, or account changes.
 
 If a layout differs, supply only the affected manually sanitized header/cell excerpt, generic error code, and fictional reproduction steps. No additional page dump is needed. Replace financial values and identifiers with fictional values; exclude scripts, cookies, tokens, keys, HARs, profile files, and application storage.

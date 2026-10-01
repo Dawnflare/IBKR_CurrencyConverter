@@ -11,12 +11,14 @@ if (!['dist/test', 'dist/production'].includes(relative(root, out).replaceAll('\
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 const hosts = ['https://api.frankfurter.dev/*', 'https://api.currencyapi.com/*'];
+const icons = Object.fromEntries([16, 24, 32, 48, 128].map(size => [size, `icons/icon-${size}.png`]));
 const manifest = {
   manifest_version: 3, name: `IBKR USD Lens${test ? ' — SYNTHETIC TEST ONLY' : ''}`, version,
-  minimum_chrome_version: '114', description: 'Estimated USD annotations for KRW. Captured Positions layout supported; live-site validation pending.',
+  minimum_chrome_version: '114', description: 'Adds estimated USD values beside KRW holdings and cash in IBKR Client Portal.',
+  icons,
   permissions: ['storage'], optional_host_permissions: hosts,
   background: { service_worker: 'background.js', type: 'module' },
-  action: { default_title: 'IBKR USD Lens', default_popup: 'popup.html' },
+  action: { default_title: 'IBKR USD Lens', default_popup: 'popup.html', default_icon: icons },
   content_scripts: [{ matches: test ? ['http://127.0.0.1:4173/*'] : ['https://portal.interactivebrokers.com/*'], js: ['content.js'], run_at: 'document_idle', all_frames: false, world: 'ISOLATED' }],
   content_security_policy: { extension_pages: "script-src 'self'; object-src 'self'; connect-src https://api.frankfurter.dev https://api.currencyapi.com" },
 };
@@ -27,6 +29,8 @@ await build({ ...common, entryPoints: ['src/worker/background.ts'], outfile: res
 await build({ ...common, entryPoints: ['src/popup/popup.ts'], outfile: resolve(out, 'popup.js'), format: 'iife' });
 await copyFile(resolve(root, 'src/popup/popup.html'), resolve(out, 'popup.html'));
 await copyFile(resolve(root, 'src/popup/popup.css'), resolve(out, 'popup.css'));
+await mkdir(resolve(out, 'icons'), { recursive: true });
+for (const path of Object.values(icons)) await copyFile(resolve(root, 'src/assets', path), resolve(out, path));
 await writeFile(resolve(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 if (!test && Object.keys(content.metafile.inputs).some(p => p.includes('fixtures') || p.includes('demo/'))) throw new Error('Fixture code leaked into production');
 if (test) {
@@ -35,5 +39,5 @@ if (test) {
   for (const file of ['index.html', 'demo.css']) await copyFile(resolve(root, 'demo', file), resolve(demo, file));
 }
 // Inspectable build provenance contains source paths only, never account or key data.
-await writeFile(resolve(out, 'BUILD.txt'), `IBKR USD Lens ${version}\nStatus: live-site-validation-pending\nBuild: ${test ? 'synthetic fixture (never load on IBKR)' : 'production, captured Positions layout'}\nNode: ${process.version}\n`);
+await writeFile(resolve(out, 'BUILD.txt'), `IBKR USD Lens ${version}\nStatus: ${test ? 'synthetic fixture' : 'user-validated Positions display: Manual and ECB'}\nBuild: ${test ? 'synthetic fixture (never load on IBKR)' : 'production, captured Positions layout'}\nNode: ${process.version}\n`);
 console.log(`Unpacked extension: ${out}`);

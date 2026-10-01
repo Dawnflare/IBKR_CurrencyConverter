@@ -1,13 +1,14 @@
 {
   "name": "ibkr-usd-lens",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
-  "description": "Private, display-only KRW to USD annotations; live-site validation pending.",
+  "description": "Private, display-only KRW to USD annotations for IBKR Positions.",
   "engines": {
     "node": ">=22.12.0 <23 || >=24"
   },
   "scripts": {
+    "icons": "node scripts/render-icons.mjs",
     "build": "node scripts/build.mjs",
     "build:test": "node scripts/build.mjs --test",
     "typecheck": "tsc --noEmit",

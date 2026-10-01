@@ -1,6 +1,10 @@
-# Test report and remaining gates
+# Test report and coverage
 
-Version: **0.1.1**. Status: **live-site-validation-pending**. Test data is fictional. No brokerage session, real account, personal browser profile, or real currencyapi key was used by automation.
+Version: **0.1.2**. Status: **user-validated Positions display in Manual and ECB modes**. Automated test data is fictional. No brokerage session, real account, personal browser profile, or real currencyapi key was used by automation.
+
+## User-confirmed live checks
+
+After installing 0.1.1, the user confirmed that Manual mode works on the live Positions page. The user then enabled ECB daily reference and confirmed that it also works. The supplied popup screenshot shows ECB selected and 3/3 fields annotated. Version 0.1.2 removes the validation banner at the user's request and adds the extension icon. This records the user's live display confirmation; it does not imply that every detailed scenario below was individually exercised.
 
 ## Environment
 
@@ -18,8 +22,8 @@ Version: **0.1.1**. Status: **live-site-validation-pending**. Test data is ficti
 | `npm test` | 105 tests passed across 5 files. |
 | `npm run build` / `npm run build:test` | Passed. Production and fixture bundles are separate; the production dependency graph excludes the fixture adapter. |
 | Chromium browser tests | 22 tests passed: 6 using the production build with reconstructed captured structure, and 16 using the separate synthetic build. Coverage includes multiple body sections, golden annotations, native text/copy preservation, row geometry, value changes, accounting signs, row reuse/detachment, sort/reorder/hide, field settings, navigation/remount, popup off/setup/reset, actual toolbar-popup sizing/status, storage isolation, message rejection, and shared caches. |
-| Production manifest/bundle inspection | Only storage and the specified origins; no localhost, fixture selectors, remote scripts, or convenience permissions in production. |
-| Public FX smoke | Passed on 0.1.0 at `2026-10-01T05:46:38Z`: production worker code in a disposable Chromium profile fetched the fixed ECB-filtered endpoint, returning source date `2026-09-30` and KRW-per-USD rate `1355.4`. This is historical test evidence, not a current quote. Not repeated for 0.1.1; provider code is unchanged. |
+| Production manifest/bundle inspection | Only storage and the specified origins; no localhost, fixture selectors, remote scripts, or convenience permissions in production. PNG signatures/dimensions and toolbar icon registration checked for all five sizes. Popup image loading and removal of the pending warning passed. |
+| Public FX smoke | Passed on 0.1.0 at `2026-10-01T05:46:38Z`: production worker code in a disposable Chromium profile fetched the fixed ECB-filtered endpoint, returning source date `2026-09-30` and KRW-per-USD rate `1355.4`. This is historical test evidence, not a current quote. Not repeated after 0.1.0; provider code is unchanged. The user subsequently confirmed live ECB operation on 0.1.1. |
 | Install audit | npm reported 0 known vulnerabilities at initial dependency installation. This is not a security guarantee. |
 
 The FX smoke uses a temporary copy of the production manifest with **only ECB permission pregranted** for that test. It verifies actual extension-worker network transport, normalization, and persistence. The production artifact retains optional permissions. It does not verify the native Chrome permission dialog.
@@ -28,7 +32,7 @@ Automated provider failures include timeout, offline/network errors, authenticat
 
 ## Performance and presentation
 
-A 200-row synthetic holdings table plus cash was tested with a cached/manual rate. The 0.1.1 full run showed **255 ms** to annotate 200 rows and **271 ms** for a single-cell update. DevTools observed **2 inserted text nodes** for that update. Four successive 200-row view replacements maintained the expected 201 estimate nodes without duplicates. These are local synthetic timings, not IBKR performance guarantees. Detached field references are cleared by lifecycle teardown; this run is not a comprehensive heap-leak proof or a hardware-independent benchmark.
+A 200-row synthetic holdings table plus cash was tested with a cached/manual rate. The 0.1.2 full run showed **251 ms** to annotate 200 rows and **247 ms** for a single-cell update. DevTools observed **2 inserted text nodes** for that update. Four successive 200-row view replacements maintained the expected 201 estimate nodes without duplicates. These are local synthetic timings, not IBKR performance guarantees. Detached field references are cleared by lifecycle teardown; this run is not a comprehensive heap-leak proof or a hardware-independent benchmark.
 
 Browser zoom was set through `chrome.tabs.setZoom` at 100%, 125%, and 150%, with viewport widths 1280, 1440, and 1920 respectively. Light and dark screenshots are in `output/playwright/`. Assertions check page overflow and rendered amounts. Closed shadow-root text is inspected through DevTools in the disposable fixture browser, without adding production test hooks. The golden fixture verifies unchanged native `textContent` and selected-copy text. Live IBKR export/sort behavior is still unverified.
 
@@ -57,18 +61,18 @@ The popup's root/body now have a stable 390-pixel intrinsic width. A narrow init
 | AT-19–22 | Bounded transport failures, cache/backoff/lease persistence, source isolation, cross-tab sharing, visibility teardown, extension-worker recreation. | Long-duration real-browser suspension/visibility behavior. |
 | AT-23–25 | Fixed URLs, header-only synthetic key, omitted credentials/referrer, source/sender validation, content storage denial. | Real keyed smoke test entered directly through UI. |
 | AT-26 | Synthetic DOM sorting, native text/selected-copy preservation; keyboard-accessible shadow notes and regional details. | Native IBKR keyboard, copy/export, and row actions (display behavior only). |
-| AT-27–28 | Production manifest/bundle audit, strict typing, build, unit and browser tests, measured 200-row fixture. | Completion requires the live integration gate below. |
+| AT-27–28 | Production manifest/bundle audit, strict typing, build, unit and browser tests, measured 200-row fixture. | Basic live Manual and ECB display confirmed by the user; additional scenarios below are not individually reported. |
 
 ## Not run / unresolved
 
-- Live IBKR interaction: the user-provided capture establishes the supported route and structural selectors, but live updates, mounting, account/context switching, and native behavior have not been validated in the user's browser.
+- Detailed live IBKR behavior: the user confirmed basic Manual and ECB display. Rapid live updates, account/context switching, and native interactions were not individually reported.
 - Real currencyapi keyed request, subscription cadence, quota behavior against an actual key.
-- Native Chrome permission dialogs, site permission revocation UI, and manual unpacked Chrome/Brave smoke tests.
+- Native permission decline/revocation UI and manual Brave smoke tests.
 - Actual IBKR grid virtualization, native export/keyboard behavior, account switches, safe mounting, and layout at the target zoom levels.
 - Optional broker DOM-rate discovery. No data source is invented or inferred from totals.
 - Extended heap-retention profiling and long-duration browser suspension testing.
 
-## User-assisted live checklist
+## Additional user-assisted coverage checklist
 
 1. Review the captured route and structural evidence in [discovery.md](discovery.md). The production adapter uses those selectors; other layouts remain unsupported.
 2. Start with the production build and Manual mode for deterministic comparisons, or explicitly enable the keyless ECB reference. Never activate the invented fixture adapter on IBKR.
@@ -77,6 +81,6 @@ The popup's root/body now have a stable 390-pixel intrinsic width. A narrow init
 5. Check sorting, filtering, column movement/hiding, scrolling/reuse, in-app/back/forward navigation, context replacement, and enable/disable.
 6. Check safe placement, keyboard focus, copy and exports at 100/125/150% and light/dark. If the table cannot safely host estimates, leave it unsupported.
 7. Grant/decline/revoke optional source permissions manually. Verify manual offline mode, source labels, error messages, key deletion, reset, hidden tabs, and stale data.
-8. Repeat a manual Brave smoke check if that browser is required. Record precisely which gates passed before changing the build's status.
+8. Repeat a manual Brave smoke check if that browser is required. Record individual check results to make future regressions easier to diagnose.
 
 Use `npm run check` to reproduce local checks. Use `npm run smoke:fx` only when explicitly intending a public keyless FX request. Test artifacts live in ignored `output/playwright/`; they contain synthetic data and public rates only.

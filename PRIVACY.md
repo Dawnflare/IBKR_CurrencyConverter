@@ -1,6 +1,6 @@
 # Privacy and data boundaries
 
-IBKR USD Lens 0.1.1 is a private, locally installed display extension. Its production adapter supports a layout established from a local user-provided capture; actual live behavior remains unvalidated. Other routes/layouts fail closed.
+IBKR USD Lens 0.1.2 is a private, locally installed display extension. Its production adapter supports a layout established from a local user-provided capture. The user confirmed live display in Manual and ECB modes after the 0.1.1 correction. Other routes/layouts fail closed.
 
 ## Information handled locally
 

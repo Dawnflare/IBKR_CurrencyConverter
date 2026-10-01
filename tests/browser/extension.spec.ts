@@ -83,6 +83,13 @@ test('production manifest and bundle enforce the discovery gate', async () => {
   expect(manifest.host_permissions).toBeUndefined();
   expect(manifest.content_scripts[0]).toMatchObject({ matches: ['https://portal.interactivebrokers.com/*'], world: 'ISOLATED', all_frames: false, run_at: 'document_idle' });
   expect(manifest.optional_host_permissions).toEqual(['https://api.frankfurter.dev/*', 'https://api.currencyapi.com/*']);
+  expect(manifest.action.default_icon).toEqual(manifest.icons);
+  for (const size of [16, 24, 32, 48, 128]) {
+    expect(manifest.icons[size]).toBe(`icons/icon-${size}.png`);
+    const png = await readFile(resolve('dist/production', manifest.icons[size]));
+    expect(png.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+    expect(png.readUInt32BE(16)).toBe(size); expect(png.readUInt32BE(20)).toBe(size);
+  }
   const content = await readFile('dist/production/content.js', 'utf8');
   expect(content).toContain('/dashboard/positions');
   expect(content).not.toMatch(/data-synthetic|data-fixture|127\.0\.0\.1|localhost/);
@@ -96,6 +103,8 @@ test('popup has a stable intrinsic width when its initial viewport is narrow', a
   await expect.poll(() => popup.locator('html').evaluate(el => el.getBoundingClientRect().width)).toBe(390);
   await expect.poll(() => popup.locator('body').evaluate(el => el.getBoundingClientRect().width)).toBe(390);
   await expect(popup.locator('#version')).toHaveText(`v${await worker.evaluate(() => chrome.runtime.getManifest().version)}`);
+  await expect(popup.locator('body')).not.toContainText(/validation pending/i);
+  await expect.poll(() => popup.locator('img.mark').evaluate(image => (image as HTMLImageElement).naturalWidth)).toBe(128);
 });
 
 test('the actual toolbar popup autosizes and reports active fixture fields', async () => {

@@ -1,8 +1,8 @@
 # IBKR USD Lens
 
-**Status: live-site-validation-pending.** A private Manifest V3 extension for supplementary USD estimates of explicitly KRW Market Value and KRW Cash Holdings Amount. Conversion means local arithmetic and display. There are no trading, transfer, brokerage API, or account-management features.
+**Status: user-validated Positions display in Manual and ECB modes.** A private Manifest V3 extension for supplementary USD estimates of explicitly KRW Market Value and KRW Cash Holdings Amount. Conversion means local arithmetic and display. There are no trading, transfer, brokerage API, or account-management features.
 
-The calculation, provider worker, protected settings popup, annotation engine, synthetic demo, and production site adapter are implemented. **The production adapter supports the captured `https://portal.interactivebrokers.com/portal/#/dashboard/positions` layout.** Its selectors and amount/currency associations come from the user-provided local MHTML capture. Unrecognized routes/layouts and cells without safe presentation space return `UNSUPPORTED_VIEW`. Actual browser interaction still needs the user-assisted checks in [discovery.md](docs/discovery.md). The private reference capture is excluded from Git; only manually constructed fictional fixtures are included. No IBKR page rate has been verified, so that source is unavailable.
+The calculation, provider worker, protected settings popup, annotation engine, synthetic demo, and production site adapter are implemented. **The production adapter supports `https://portal.interactivebrokers.com/portal/#/dashboard/positions`.** Its selectors and amount/currency associations come from the user-provided local MHTML capture. The user confirmed successful live display with both Manual and ECB daily reference after the 0.1.1 correction. Unrecognized routes/layouts and cells without safe presentation space return `UNSUPPORTED_VIEW`. Detailed test coverage is recorded in [testing.md](docs/testing.md). The private reference capture is excluded from Git; only manually constructed fictional fixtures are included. No IBKR page rate has been verified, so that source is unavailable.
 
 ## Try the synthetic demo
 
@@ -17,7 +17,7 @@ Open `http://127.0.0.1:4173/positions.html#/positions`. Change 1,350 to 1,500 KR
 
 ## Build and install
 
-**Updating from 0.1.0:** version **0.1.1** fixes `UNSUPPORTED_VIEW` on the captured grid, which contains a separate table body for each holding. Reload USD Lens in `chrome://extensions`, refresh Positions, and check that the popup header shows **v0.1.1**. Your saved Manual settings are preserved.
+**Updating:** version **0.1.2** removes the validation warning following the user's successful live checks and adds the USD Lens icon. It includes the 0.1.1 fix for multiple holdings table-body sections. Reload USD Lens in `chrome://extensions`, refresh Positions, and check that the popup header shows **v0.1.2**. Your saved settings are preserved.
 
 Use Node **22.12 or later in the 22.x line**, or Node **24+**, and npm. Development was checked with Node 22.22.2 and npm 10.9.7 on Windows. Exact tool versions are pinned in `package.json` and `package-lock.json`. There are zero production dependencies.
 
@@ -31,7 +31,7 @@ The unpacked production extension is generated in **`dist/production`**. Node/np
 1. In Chrome, open `chrome://extensions` and enable Developer mode.
 2. Choose **Load unpacked** and select `dist/production`.
 3. Pin USD Lens if desired, then open its popup.
-4. Configure a source and save settings. The popup explains the pending live validation. Open the captured Positions view, then perform the display-only checklist in `docs/testing.md`. You can test public FX separately from the popup.
+4. Configure a source and save settings. Open the supported Positions view to see USD estimates and the field count in the popup. You can test public FX separately from the popup.
 
 After rebuilding, click the extension's **Reload** button and reload any test page to retire its previous content script. Do not run two copies of the extension on one page. Chrome 114 is the declared minimum for the selected APIs; automated browser validation used bundled Chromium 153. Brave can load the same unpacked build at `brave://extensions`, but a manual Brave smoke test is still required.
 
@@ -86,6 +86,8 @@ npm run smoke:fx
 Browser tests use new temporary profiles, synthetic data, mocked FX, and blocked unrelated network traffic. `smoke:fx` uses a disposable copy of the production build with ECB permission pregranted solely for that test. It never opens IBKR. Neither test command requires or accepts a real provider key.
 
 See [testing.md](docs/testing.md) for actual results, coverage limits, and the remaining manual checklist. Generated artifacts and screenshots are ignored by Git and can be reproduced with the commands above.
+
+The original vector icon is `src/assets/icon.svg`. Committed PNGs at 16, 24, 32, 48, and 128 pixels are copied into builds for the toolbar, extension listing, and popup. To regenerate them after editing the SVG, run `npm run icons` (requires the development Chromium installed above). Normal builds use the committed files and require no browser.
 
 ## Source map
 

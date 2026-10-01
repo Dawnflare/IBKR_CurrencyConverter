@@ -3,7 +3,7 @@ const normalized = (element: Element): string => (element.textContent ?? '').tri
 const direct = <T extends Element>(element: Element, name: string): T[] => [...element.children].filter(child => child.tagName === name && !child.hasAttribute('data-usd-lens')) as T[];
 /** Evidence: local capture, 2026-09-30. See docs/discovery.md. No account/instrument IDs are read. */
 export const adapter: SiteAdapter = {
-  name: 'IBKR Positions · captured DOM, live validation pending', verified: true, available: true,
+  name: 'IBKR Positions', verified: true, available: true,
   discover(document, location) {
     if (location.origin !== 'https://portal.interactivebrokers.com' || location.pathname !== '/portal/' || location.hash !== '#/dashboard/positions') return null;
     const contexts = document.querySelectorAll<HTMLElement>('.ptf-models');

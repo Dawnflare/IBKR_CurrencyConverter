@@ -1,5 +1,11 @@
 # Change log
 
+## 0.1.2
+
+- Removed the live-validation warning and pending status after the user confirmed successful live Manual and ECB display.
+- Added an original teal lens icon with a gold dollar mark to the toolbar, extension listing, and popup, including 16/24/32/48/128-pixel PNG assets and editable SVG source.
+- Recorded the user's successful checks in the documentation while retaining the detailed coverage limits.
+
 ## 0.1.1 — 2026-09-30
 
 - Fixed page detection rejecting the captured holdings grid because it uses one `tbody` per holding. Discovery now accepts multiple body sections and reads each section's direct rows.

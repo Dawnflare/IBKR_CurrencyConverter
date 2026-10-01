@@ -49,7 +49,7 @@ async function popupState(): Promise<PopupState> {
     chrome.storage.session.get('providerKey'), chrome.storage.local.get('providerKey'),
     chrome.permissions.contains({ origins: [HOSTS.ecb] }), chrome.permissions.contains({ origins: [HOSTS.currencyapi] }),
   ]);
-  return { settings: { ...settings }, keyPresent: typeof session.providerKey === 'string' || typeof local.providerKey === 'string', remembered: typeof local.providerKey === 'string', permissions: { ecb, currencyapi }, brokerAvailable: false, buildStatus: 'live-site-validation-pending', lastRate: await service.get({ ...settings }, { cacheOnly: true, consumer: 'popup' }) };
+  return { settings: { ...settings }, keyPresent: typeof session.providerKey === 'string' || typeof local.providerKey === 'string', remembered: typeof local.providerKey === 'string', permissions: { ecb, currencyapi }, brokerAvailable: false, lastRate: await service.get({ ...settings }, { cacheOnly: true, consumer: 'popup' }) };
 }
 async function handle(value: unknown, sender: chrome.runtime.MessageSender): Promise<unknown> {
   const role = senderRole(sender, chrome.runtime.id, __FIXTURE_ORIGIN__);

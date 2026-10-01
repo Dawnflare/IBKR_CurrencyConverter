@@ -57,7 +57,7 @@ async function viewStatus(): Promise<void> {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id === undefined) throw new Error();
     const status = await chrome.tabs.sendMessage(tab.id, { type: 'viewStatus' }) as ViewStatus;
-    $('viewStatus').textContent = status.supported ? status.adapter.startsWith('Synthetic') ? 'Supported synthetic view' : 'Positions · validation pending' : status.code ?? 'UNSUPPORTED_VIEW';
+    $('viewStatus').textContent = status.supported ? status.adapter.startsWith('Synthetic') ? 'Supported synthetic view' : 'Positions' : status.code ?? 'UNSUPPORTED_VIEW';
     $('counts').textContent = `${status.annotated}/${status.eligible} fields`;
   } catch { $('viewStatus').textContent = 'UNSUPPORTED_VIEW'; $('counts').textContent = '0 fields'; }
 }

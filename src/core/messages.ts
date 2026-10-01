@@ -7,7 +7,6 @@ export interface PopupState {
   remembered: boolean;
   permissions: { ecb: boolean; currencyapi: boolean };
   brokerAvailable: false;
-  buildStatus: 'live-site-validation-pending';
   lastRate: RateResult;
 }
 export type RateReply = Reply<RateResult>;
