@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>IBKR USD Lens</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <header><div class="mark" aria-hidden="true">₩<span>≈ $</span></div><div><h1>USD Lens</h1><p>A second perspective on KRW</p></div></header>
+  <main>
+    <section class="notice"><strong>Live-site validation pending</strong><p>The captured Positions layout is supported. Live updates, native controls, and placement still need your validation.</p></section>
+    <div class="view"><span id="viewStatus">Checking view…</span><span id="counts">0 fields</span></div>
+    <form id="settingsForm">
+      <label class="enable"><span><strong>Show USD estimates</strong><small>Keep native brokerage figures intact</small></span><input id="enabled" type="checkbox" role="switch"></label>
+      <label for="mode">Exchange-rate source</label>
+      <select id="mode"><option value="auto">Auto · page rate → ECB reference</option><option value="ecb">ECB daily reference</option><option value="currencyapi">currencyapi · your provider key</option><option value="manual">Manual · offline</option></select>
+      <p class="hint" id="modeHelp">Auto uses a verified page rate when available. Otherwise, it uses the ECB daily reference only after you enable it. A daily reference is not a live feed.</p>
+      <div id="manualSection" hidden><label for="manualRate">KRW per US$1</label><input id="manualRate" inputmode="decimal" type="number" min="0.000000001" max="1000000000" step="any" placeholder="e.g. 1350"><p class="hint">Saving Manual mode confirms this rate now. It stays offline and requires reconfirmation after seven days.</p></div>
+      <div id="cadenceSection" hidden><label for="cadence">Your provider plan’s update cadence</label><select id="cadence"><option value="daily">Daily</option><option value="hourly">Hourly</option><option value="minute">Minute-level</option></select><p class="hint">Choose your actual plan cadence. Refreshing cannot make a daily dataset live.</p></div>
+      <details class="preferences"><summary>Display preferences</summary><div class="grid"><div><label for="format">Numbers</label><select id="format"><option value="full">Full · US$200,000.00</option><option value="compact">Compact · US$200k</option></select></div><div><label for="placement">Placement</label><select id="placement"><option value="underneath">Underneath</option><option value="inline">Inline, where safe</option></select></div></div><label class="check"><input id="marketValue" type="checkbox"> KRW Market Value</label><label class="check"><input id="cash" type="checkbox"> KRW Cash Holdings Amount</label></details>
+      <button id="save" class="primary" type="submit">Save settings / confirm rate</button>
+    </form>
+    <details class="connections"><summary>External sources &amp; provider key</summary><p class="hint">Optional requests send only the fixed USD/KRW pair. Providers can see your IP address and request timing.</p>
+      <div class="connection"><div><strong>ECB via Frankfurter</strong><small id="ecbPermission">Permission not granted</small></div><button type="button" id="ecbAccess">Enable ECB</button></div>
+      <div class="connection"><div><strong>currencyapi</strong><small id="currencyPermission">Permission not granted</small></div><button type="button" id="currencyAccess">Enable provider</button></div>
+      <form id="keyForm"><label for="apiKey">Your currencyapi key</label><input id="apiKey" type="password" maxlength="512" autocomplete="off" spellcheck="false" placeholder="Enter directly here"><label class="check"><input id="remember" type="checkbox"> Remember on this device</label><p class="hint">The default is session-only. Remembered keys use ordinary local extension storage, not an encrypted credential vault. Profile access or local malware can expose them.</p><p id="keyStatus" class="hint">No key saved</p><div class="actions"><button type="submit">Save key</button><button id="deleteKey" type="button">Delete key</button></div></form>
+    </details>
+    <section class="fx"><div class="fxHeading"><h2>Rate details</h2><button id="refresh" type="button">Refresh / test FX</button></div><p id="rateSummary">Choose a source to get started.</p><pre id="rateDetails"></pre><p class="hint">Refresh is limited to once per minute; a daily currencyapi plan permits at most one successful refresh per hour.</p></section>
+    <p id="feedback" role="status" aria-live="polite"></p>
+    <button id="reset" type="button" class="quiet">Clear all saved data</button>
+  </main>
+  <footer><p>Display estimate only. Not an executable FX quote or IBKR account valuation.</p><p>Independent of IBKR. An FX timestamp does not establish the freshness of the native position valuation.</p></footer>
+  <script src="popup.js"></script>
+</body></html>

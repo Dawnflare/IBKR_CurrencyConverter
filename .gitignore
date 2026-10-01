@@ -6,6 +6,10 @@ node_modules/
 /coverage/
 /playwright-report/
 /test-results/
+/output/playwright/
+
+# Private local brokerage reference captures; never commit or publish
+/=reference_material/
 
 # Local environment and credentials
 .env
