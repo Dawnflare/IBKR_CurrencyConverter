@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build and test output
+/dist/
+/coverage/
+/playwright-report/
+/test-results/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+
+# Logs
+*.log
+npm-debug.log*
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Local editor settings
+.vscode/
+.idea/
