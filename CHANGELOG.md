@@ -1,5 +1,22 @@
 # Change log
 
+## 0.1.5 — 2026-10-06
+
+- Added Cost Basis USD estimates with an independent toggle enabled by default and preserved existing field/source preferences.
+- Interpret Cost Basis `M` amounts as millions, including decimals, signs, and accounting parentheses; retain native abbreviations and explain their displayed precision in the tooltip. Full numbers are also supported.
+- Retain exact-cell KRW eligibility, USD exclusions, expanded-amount bounds, and column-change handling.
+- Hide old overlay positions before checking new positions so a moved Cost Basis estimate cannot temporarily suppress Last's estimate.
+- Added numeric, settings-migration, and production-browser tests for Cost Basis, shared rates, native text/layout, invalid values, currency changes, and column movement/hiding/toggles.
+- Recorded the user's confirmation that the 0.1.4 Last and column-change fixes and 0.1.5 Cost Basis conversion work live.
+
+## 0.1.4 — 2026-10-06
+
+- Added Last price USD estimates using explicit, agreeing currency labels from the same row. USD rows and rows with missing or conflicting currency evidence are skipped.
+- Recognize Last's leading `C` as a previous-close marker, preserve native text, and identify the previous close in the estimate tooltip.
+- Removed the requirement that `aria-colindex` equal the current DOM position. Removing Avg Price or moving columns no longer disables subsequent P&L estimates; hidden or absent fields are normal display preferences.
+- Added an independent Last toggle enabled by default, preserving existing settings, including disabled Avg Price. Clarified Avg Price as cost basis in the popup.
+- Added regressions for the reported removal failure, Last updates/markers, row currency changes, missing/conflicting evidence, reordered/hidden/restored columns, and settings migration.
+
 ## 0.1.3 — 2026-10-01
 
 - Changed the icon's currency mark from dollar to Korean won (₩) at every PNG size.

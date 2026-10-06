@@ -14,7 +14,7 @@ export function createAnnotation(mount: HTMLElement): Annotation {
   shadow.append(style, label); mount.append(host);
   return { host, label, last: '' };
 }
-export function updateAnnotation(annotation: Annotation, amount: number, settings: Settings, result: RateResult | null, now: number): void {
+export function updateAnnotation(annotation: Annotation, amount: number, settings: Settings, result: RateResult | null, now: number, note = ''): void {
   const rate = result?.rate;
   const age = rate ? freshness(rate, settings.cadence, now) : null;
   let text = 'USD unavailable';
@@ -30,6 +30,7 @@ export function updateAnnotation(annotation: Annotation, amount: number, setting
     }
   }
   if (result?.code && !['RATE_STALE', 'RATE_EXPIRED'].includes(result.code)) details += `\nConnection: ${result.code}`;
+  if (note) details += `\n${note}`;
   const fingerprint = `${text}|${details}|${settings.placement}`;
   if (annotation.last === fingerprint) return;
   annotation.last = fingerprint;

@@ -19,7 +19,7 @@ try {
   const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker');
   const page = await context.newPage();
   await page.goto(`chrome-extension://${new URL(worker.url()).host}/popup.html`);
-  const saved = await page.evaluate(async () => chrome.runtime.sendMessage({ type: 'saveSettings', settings: { enabled: false, mode: 'ecb', placement: 'underneath', format: 'full', marketValue: true, avgPrice: false, dailyPnl: false, unrealizedPnl: false, cash: true, ecbEnabled: true, currencyapiEnabled: false, cadence: 'daily', manualRate: null } }));
+  const saved = await page.evaluate(async () => chrome.runtime.sendMessage({ type: 'saveSettings', settings: { enabled: false, mode: 'ecb', placement: 'underneath', format: 'full', marketValue: true, lastPrice: false, costBasis: false, avgPrice: false, dailyPnl: false, unrealizedPnl: false, cash: true, ecbEnabled: true, currencyapiEnabled: false, cadence: 'daily', manualRate: null } }));
   if (!saved.ok) throw new Error(saved.code);
   const reply = await page.evaluate(async () => chrome.runtime.sendMessage({ type: 'refresh' }));
   if (!reply.ok || reply.data?.connection !== 'ok' || reply.data?.rate?.source !== 'ecb') throw new Error(reply.code ?? reply.data?.code ?? 'SMOKE_FAILED');

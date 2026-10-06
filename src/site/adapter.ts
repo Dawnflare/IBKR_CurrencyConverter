@@ -4,6 +4,7 @@ export interface SiteView { context: Element; regions: Region[]; }
 export interface Candidate {
   row: HTMLElement; cell: HTMLElement; mount: HTMLElement;
   currency: string | null; text: string; kind: FieldKind;
+  note?: string;
   overlay?: { amount: HTMLElement; currency: HTMLElement | null };
 }
 export interface ReadResult { candidates: Candidate[]; code: ErrorCode | null; }

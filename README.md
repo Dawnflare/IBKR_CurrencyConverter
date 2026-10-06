@@ -1,6 +1,6 @@
 # IBKR USD Lens
 
-**Status: user-validated Positions display in Manual and ECB modes.** A private Manifest V3 extension for supplementary USD estimates of explicitly KRW **Market Value, Avg Price, Daily P&L, Unrealized P&L**, and **Cash Holdings Amount**. Conversion means local arithmetic and display. There are no trading, transfer, brokerage API, or account-management features.
+**Status: user-validated Positions display in Manual and ECB modes.** A private Manifest V3 extension for supplementary USD estimates of KRW **Market Value, Last, Cost Basis, Avg Price (cost basis per unit), Daily P&L, Unrealized P&L**, and **Cash Holdings Amount**. Conversion means local arithmetic and display. There are no trading, transfer, brokerage API, or account-management features.
 
 The calculation, provider worker, protected settings popup, annotation engine, synthetic demo, and production site adapter are implemented. **The production adapter supports `https://portal.interactivebrokers.com/portal/#/dashboard/positions`.** Its selectors and amount/currency associations come from the user-provided local MHTML capture. The user confirmed successful live display with both Manual and ECB daily reference after the 0.1.1 correction. Unrecognized routes/layouts and cells without safe presentation space return `UNSUPPORTED_VIEW`. Detailed test coverage is recorded in [testing.md](docs/testing.md). The private reference capture is excluded from Git; only manually constructed fictional fixtures are included. No IBKR page rate has been verified, so that source is unavailable.
 
@@ -17,7 +17,7 @@ Open `http://127.0.0.1:4173/positions.html#/positions`. Change 1,350 to 1,500 KR
 
 ## Build and install
 
-**Updating:** version **0.1.3** adds Avg Price, Daily P&L, and Unrealized P&L estimates and changes the icon's currency mark to **₩**. The new columns default to enabled; saved sources, rates, consent, and existing field preferences are preserved. Reload USD Lens in `chrome://extensions`, refresh Positions, and check that the popup header shows **v0.1.3**.
+**Updating:** version **0.1.5** adds Cost Basis estimates, including `M` amounts interpreted as millions. Cost Basis defaults to enabled; saved sources, rates, consent, and existing field preferences (including disabled Avg Price) are preserved. Reload USD Lens in `chrome://extensions`, refresh Positions, and check that the popup header shows **v0.1.5**.
 
 Use Node **22.12 or later in the 22.x line**, or Node **24+**, and npm. Development was checked with Node 22.22.2 and npm 10.9.7 on Windows. Exact tool versions are pinned in `package.json` and `package-lock.json`. There are zero production dependencies.
 
@@ -54,9 +54,13 @@ The **Show USD estimates** switch takes effect immediately after setup. It remov
 
 ## Supported fields
 
-**Display preferences** provides an independent toggle for Market Value, Avg Price, Daily P&L, Unrealized P&L, and Cash Holdings Amount. All five are enabled by default. Only cells explicitly labeled KRW are eligible. Missing, hidden, ambiguous, or disabled columns do not block other supported columns.
+**Display preferences** provides an independent toggle for Market Value, Last price, Cost Basis, Avg Price (cost basis), Daily P&L, Unrealized P&L, and Cash Holdings Amount. All seven are enabled by default. Missing, hidden, ambiguous, or disabled columns do not block other supported columns. Mapping follows current table header order, without requiring accessibility indexes to be renumbered after a column change.
 
-Every estimate divides its displayed KRW amount by the same selected KRW-per-USD rate. Avg Price is a per-unit price estimate. P&L annotations translate the native displayed P&L amount at the selected FX rate; they do not calculate a separate historical USD investment return. Native values, signs, and colors remain intact, and estimates match their native amount's text color. The added columns were requested after the original PRD and extend its initial Market Value/cash scope.
+Last has no currency label of its own, so the extension reads explicit labels in known monetary columns on the same row, even when conversion for those columns is disabled. The labels must agree on KRW; USD rows and missing or conflicting evidence are skipped. A leading `C` is treated as a previous-market-close marker only for Last. The original marker stays visible, and the estimate's tooltip identifies the previous close.
+
+Cost Basis reads its own KRW label and expands the displayed `M` suffix by 1,000,000 before conversion (for example, `250M` means 250,000,000 KRW and `34.5M` means 34,500,000 KRW). Full amounts also work. The native abbreviation stays visible; the tooltip explains that IBKR may have rounded it. This converts the displayed amount without recovering undisplayed precision.
+
+Every estimate divides its displayed KRW amount by the same selected KRW-per-USD rate. Last represents the displayed market price; Avg Price represents average cost basis per unit. P&L annotations translate the native displayed P&L amount at the selected FX rate; they do not calculate a separate historical USD investment return. Native values, signs, and colors remain intact, and estimates match their native amount's text color. The added columns were requested after the original PRD and extend its initial Market Value/cash scope.
 
 ## Freshness and failures
 
@@ -107,7 +111,7 @@ The original vector icon is `src/assets/icon.svg`. Committed PNGs at 16, 24, 32,
 | `tests/fixtures/`, `demo/` | Invented layout and fictional data, excluded from production. |
 | `docs/discovery.md` | Evidence ledger and exact live-integration prerequisites. |
 
-The parser supports English grouped or ungrouped decimals, Unicode/ASCII minus, plus, parentheses, and surrounding nonbreaking spaces. Abbreviated values such as `270M` are skipped because no verified exact-cell precision attribute exists. Amounts and converted results are bounded to an absolute 10¹²; rates to 10⁻⁹–10⁹. Arithmetic retains native numeric precision; `Intl.NumberFormat('en-US')` rounds half away from zero for display, normalizing rounded negative zero. This is an indicative display, not ledger arithmetic.
+The parser supports English grouped or ungrouped decimals, Unicode/ASCII minus, plus, parentheses, and surrounding nonbreaking spaces. Cost Basis accepts `M`/`m` as million under the user's explicit interpretation; other fields still skip abbreviations because no verified exact-cell precision attribute exists. Expanded amounts and converted results are bounded to an absolute 10¹²; rates to 10⁻⁹–10⁹. Arithmetic uses the displayed numeric precision; `Intl.NumberFormat('en-US')` rounds half away from zero for display, normalizing rounded negative zero. This is an indicative display, not ledger arithmetic.
 
 Annotations use namespaced closed shadow roots so native cell `textContent` remains unchanged. The adapter reads every direct table-body section, including the captured one-section-per-holding layout. Production overlays fit entirely inside measured unused cell space without changing native styles or row heights. Underneath is preferred; a safe inline position is used when a second line would not fit (notably cash). If neither position fits, the number is withheld and the region reports an unsupported layout. Scrolling/resizing repositions overlays; clipped or covered positions are hidden. The captured-structure fixture verifies unchanged row heights and native copy text, but actual IBKR export, keyboard, virtualization, and mounting still need live validation. A framework removing an active mount stops that view's annotations rather than causing an insertion loop.
 

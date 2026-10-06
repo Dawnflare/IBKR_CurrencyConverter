@@ -11,11 +11,13 @@ export function settingsInput(value: unknown): SettingsInput {
   return value as unknown as SettingsInput;
 }
 export function restoreSettings(value: unknown): Settings {
-  if (!isObject(value) || ![1, 2].includes(value.schemaVersion as number) || typeof value.setupComplete !== 'boolean') return { ...DEFAULT_SETTINGS };
+  if (!isObject(value) || ![1, 2, 3, 4].includes(value.schemaVersion as number) || typeof value.setupComplete !== 'boolean') return { ...DEFAULT_SETTINGS };
   try {
-    // v0.1.3 adds three fields. Preserve existing source, consent, toggles and entry time.
-    const migrated = value.schemaVersion === 1 ? { ...value, avgPrice: true, dailyPnl: true, unrealizedPnl: true } : value;
+    // Add new fields for each older schema, preserving source, consent, toggles and entry time.
+    let migrated = value.schemaVersion === 1 ? { ...value, avgPrice: true, dailyPnl: true, unrealizedPnl: true } : value;
+    if (value.schemaVersion === 1 || value.schemaVersion === 2) migrated = { ...migrated, lastPrice: true };
+    if (value.schemaVersion !== 4) migrated = { ...migrated, costBasis: true };
     const input = Object.fromEntries(inputKeys.map(k => [k, migrated[k]]));
-    return { ...settingsInput(input), schemaVersion: 2, setupComplete: value.setupComplete, manualEnteredAt: isTime(value.manualEnteredAt) ? value.manualEnteredAt : null };
+    return { ...settingsInput(input), schemaVersion: 4, setupComplete: value.setupComplete, manualEnteredAt: isTime(value.manualEnteredAt) ? value.manualEnteredAt : null };
   } catch { return { ...DEFAULT_SETTINGS }; }
 }

@@ -5,21 +5,21 @@ let context: BrowserContext;
 let page: Page;
 let popup: Page;
 const url = 'https://portal.interactivebrokers.com/portal/#/dashboard/positions';
-const manual = { enabled: true, mode: 'manual', placement: 'underneath', format: 'full', marketValue: true, avgPrice: false, dailyPnl: false, unrealizedPnl: false, cash: true, ecbEnabled: false, currencyapiEnabled: false, cadence: 'daily', manualRate: 1350 };
+const manual = { enabled: true, mode: 'manual', placement: 'underneath', format: 'full', marketValue: true, lastPrice: false, costBasis: false, avgPrice: false, dailyPnl: false, unrealizedPnl: false, cash: true, ecbEnabled: false, currencyapiEnabled: false, cadence: 'daily', manualRate: 1350 };
 const allColumns = { avgPrice: true, dailyPnl: true, unrealizedPnl: true };
 async function setup(changes: Record<string, unknown> = {}): Promise<void> {
   const response = await popup.evaluate(async settings => chrome.runtime.sendMessage({ type: 'saveSettings', settings }), { ...manual, ...changes });
   expect(response.ok).toBe(true); await page.bringToFront();
 }
-async function visibleText(selector: string): Promise<string> {
+async function visibleText(selector: string, includeTitles = false): Promise<string> {
   const cdp = await context.newCDPSession(page);
   try {
     const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
     const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector });
     if (!nodeId) return '';
     const { node } = await cdp.send('DOM.describeNode', { nodeId, depth: -1, pierce: true });
-    type Node = { nodeValue: string; children?: Node[]; shadowRoots?: Node[] };
-    const content = (n: Node): string => n.nodeValue + [...(n.children ?? []), ...(n.shadowRoots ?? [])].map(content).join('');
+    type Node = { nodeValue: string; children?: Node[]; shadowRoots?: Node[]; attributes?: string[] };
+    const content = (n: Node): string => n.nodeValue + (includeTitles && n.attributes?.includes('title') ? n.attributes[n.attributes.indexOf('title') + 1] : '') + [...(n.children ?? []), ...(n.shadowRoots ?? [])].map(content).join('');
     return content(node);
   } finally { await cdp.detach(); }
 }
@@ -136,6 +136,180 @@ test('new column header mapping and popup toggles are independent of Market Valu
   await expect(page.locator('.unrealized-pnl [data-usd-lens=estimate]:visible')).toHaveCount(2);
   await popup.reload(); await expect(popup.locator('#avgPrice')).not.toBeChecked();
   await expect(popup.locator('#unrealizedPnl')).toBeChecked();
+});
+
+test('removing Avg Price preserves P&L with unchanged accessibility column indexes', async () => {
+  await setup({ ...allColumns, avgPrice: false });
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(7);
+  await page.locator('.ptf-positions .avg-price').evaluateAll(cells => cells.forEach(cell => cell.remove()));
+  await page.locator('#captured-a .daily-pnl > span:not([data-usd-lens])').evaluate(amount => { amount.textContent = '4,050,000.00'; });
+  await expect.poll(() => visibleText('#captured-a .daily-pnl')).toContain('≈ US$3,000.00');
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(7);
+  await expect.poll(() => visibleText('#captured-b .unrealized-pnl')).toContain('≈ −US$5,000.00');
+});
+
+test('Last converts row currency and previous-close markers without changing native text or geometry', async () => {
+  await page.locator('.ptf-positions .avg-price').evaluateAll(cells => cells.forEach(cell => cell.remove()));
+  await page.locator('#captured-a .last-price > span').evaluate(amount => { amount.innerHTML = '<span>C</span><span>1350000</span>'; });
+  await page.locator('#captured-usd .last-price > span').evaluate(amount => { amount.textContent = 'C50'; });
+  const native = await page.locator('tbody').allTextContents();
+  const heights = await page.locator('tbody tr').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
+  await setup({ ...allColumns, avgPrice: false, lastPrice: true });
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(9);
+  await expect.poll(() => visibleText('#captured-a .last-price', true)).toContain('Last: previous market close (C).');
+  await expect.poll(() => visibleText('#captured-a .last-price')).toContain('≈ US$1,000.00');
+  await expect.poll(() => visibleText('#captured-b .last-price')).toContain('≈ US$1,000.00');
+  await expect(page.locator('#captured-usd [data-usd-lens]')).toHaveCount(0);
+  expect(await page.locator('tbody').allTextContents()).toEqual(native);
+  expect(await page.locator('tbody tr').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height))).toEqual(heights);
+  await page.screenshot({ path: 'output/playwright/last-price-no-avg.png', fullPage: true });
+  await setup({ ...allColumns, avgPrice: false, lastPrice: true, manualRate: 1500 });
+  await expect.poll(() => visibleText('#captured-a .last-price')).toContain('≈ US$900.00');
+  await page.locator('#captured-a .last-price > span:not([data-usd-lens])').evaluate(amount => { amount.textContent = '2700000'; });
+  await expect.poll(() => visibleText('#captured-a .last-price')).toContain('≈ US$1,800.00');
+  await expect.poll(() => visibleText('#captured-a .last-price', true)).not.toContain('previous market close');
+});
+
+test('Last uses remaining row currency labels even when their conversions are disabled', async () => {
+  await page.locator('.ptf-positions').evaluate(region => {
+    region.querySelectorAll('.market,.avg-price,.daily-pnl,.unrealized-pnl').forEach(cell => cell.remove());
+    // An unrelated currency in an instrument name must not be used as currency evidence.
+    region.querySelector('#captured-a .instrument')!.textContent = 'Fictional USD label';
+  });
+  await setup({ marketValue: false, lastPrice: true, cash: false });
+  await expect.poll(() => visibleText('#captured-a .last-price')).toContain('≈ US$1,000.00');
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(2);
+  await page.locator('#captured-a .cost-basis .fs8').evaluate(currency => { currency.textContent = 'USD'; });
+  await expect(page.locator('#captured-a .last-price [data-usd-lens]')).toHaveCount(0);
+  await page.locator('#captured-usd .cost-basis .fs8').evaluate(currency => { currency.textContent = 'KRW'; });
+  await expect.poll(() => visibleText('#captured-usd .last-price')).toContain('≈ US$0.04');
+  await page.locator('.ptf-positions .cost-basis').evaluateAll(cells => cells.forEach(cell => cell.remove()));
+  await expect(page.locator('[data-usd-lens=estimate]')).toHaveCount(0);
+});
+
+test('Last skips conflicting currency and malformed prices without affecting other fields', async () => {
+  await setup({ ...allColumns, lastPrice: true });
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(11);
+  await page.locator('#captured-a .cost-basis .fs8').evaluate(currency => { currency.textContent = 'USD'; });
+  await expect(page.locator('#captured-a .last-price [data-usd-lens]')).toHaveCount(0);
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(10);
+  await page.locator('#captured-a .cost-basis .fs8').evaluate(currency => { currency.textContent = 'KRW'; });
+  await expect(page.locator('#captured-a .last-price [data-usd-lens]:visible')).toHaveCount(1);
+  for (const [index, value] of ['C1.35M', 'CC1350000', 'C', '1350000C', '—'].entries()) {
+    await page.locator('#captured-a .last-price > span:not([data-usd-lens])').evaluate((amount, value) => { amount.textContent = value; }, value);
+    // A separate valid price changes too, ensuring this observer batch has completed.
+    await page.locator('#captured-b .last-price > span:not([data-usd-lens])').evaluate((amount, index) => { amount.textContent = String(1350 * (index + 1)); }, index);
+    await expect.poll(() => visibleText('#captured-b .last-price')).toContain(`≈ US$${index + 1}.00`);
+    await expect(page.locator('#captured-a .last-price [data-usd-lens]')).toHaveCount(0);
+    await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(10);
+  }
+  await page.locator('#captured-a .last-price > span:not([data-usd-lens])').evaluate(amount => { amount.textContent = 'C 1,350,000.00'; });
+  await expect.poll(() => visibleText('#captured-a .last-price')).toContain('≈ US$1,000.00');
+  await page.locator('#captured-a .daily-pnl > span:not([data-usd-lens])').evaluate(amount => { amount.textContent = 'C1350000'; });
+  await expect(page.locator('#captured-a .daily-pnl [data-usd-lens]')).toHaveCount(0);
+});
+
+test('Last and P&L follow reorder, hide, restore, and absent accessibility indexes', async () => {
+  await setup({ ...allColumns, lastPrice: true });
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(11);
+  await page.locator('.ptf-positions table').evaluate(element => {
+    const table = element as HTMLTableElement;
+    for (const row of table.rows) row.insertBefore(row.querySelector('.last-price')!, row.cells[2]!);
+    table.querySelectorAll('.avg-price').forEach(cell => { (cell as HTMLElement).hidden = true; });
+    table.querySelectorAll('[aria-colindex]').forEach(header => header.removeAttribute('aria-colindex'));
+    table.querySelector('#captured-a .daily-pnl > span')!.textContent = '4,050,000.00';
+  });
+  await expect.poll(() => visibleText('#captured-a .daily-pnl')).toContain('≈ US$3,000.00');
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(9);
+  await page.locator('.last-price').evaluateAll(cells => cells.forEach(cell => { (cell as HTMLElement).style.display = 'none'; }));
+  await expect(page.locator('.last-price [data-usd-lens]')).toHaveCount(0);
+  await expect(page.locator('.daily-pnl [data-usd-lens]:visible,.unrealized-pnl [data-usd-lens]:visible')).toHaveCount(4);
+  await page.locator('.ptf-positions table').evaluate(table => {
+    table.querySelectorAll('.last-price').forEach(cell => { (cell as HTMLElement).style.display = ''; });
+    table.querySelectorAll('.avg-price').forEach(cell => { (cell as HTMLElement).hidden = false; });
+  });
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(11);
+  await popup.reload(); await popup.locator('.preferences summary').click();
+  await expect(popup.locator('#lastPrice')).toBeChecked();
+  await popup.locator('#lastPrice').uncheck(); await popup.locator('#save').click(); await page.bringToFront();
+  await expect(page.locator('.last-price [data-usd-lens]')).toHaveCount(0);
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(9);
+  await popup.reload(); await expect(popup.locator('#lastPrice')).not.toBeChecked();
+  await expect(popup.locator('#dailyPnl')).toBeChecked();
+});
+
+test('Cost Basis expands millions and shares the FX rate without changing native text or layout', async () => {
+  await page.locator('.ptf-positions .avg-price').evaluateAll(cells => cells.forEach(cell => cell.remove()));
+  await page.locator('#captured-b .cost-basis > span').evaluate(amount => { amount.textContent = '34.5M'; });
+  const native = await page.locator('tbody').allTextContents();
+  const heights = await page.locator('tbody tr').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
+  await setup({ ...allColumns, avgPrice: false, lastPrice: true, costBasis: true });
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(11);
+  await expect.poll(() => visibleText('#captured-a .cost-basis')).toContain('≈ US$185,185.19');
+  await expect.poll(() => visibleText('#captured-b .cost-basis')).toContain('≈ US$25,555.56');
+  await expect.poll(() => visibleText('#captured-a .cost-basis', true)).toContain('M means million (×1,000,000)');
+  await expect(page.locator('#captured-usd [data-usd-lens]')).toHaveCount(0);
+  expect(await page.locator('tbody').allTextContents()).toEqual(native);
+  expect(await page.locator('tbody tr').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height))).toEqual(heights);
+  const copy = await page.locator('#captured-a .cost-basis').evaluate(cell => {
+    const range = document.createRange(); range.selectNodeContents(cell); const selection = getSelection()!;
+    selection.removeAllRanges(); selection.addRange(range); const text = selection.toString(); selection.removeAllRanges(); return text;
+  });
+  expect(copy).toContain('250M'); expect(copy).not.toContain('US$');
+  await page.screenshot({ path: 'output/playwright/cost-basis-millions.png', fullPage: true });
+  await setup({ ...allColumns, avgPrice: false, lastPrice: true, costBasis: true, manualRate: 1500 });
+  await expect.poll(() => visibleText('#captured-a .cost-basis')).toContain('≈ US$166,666.67');
+  await expect.poll(() => visibleText('#captured-b .cost-basis')).toContain('≈ US$23,000.00');
+  await expect.poll(() => visibleText('#captured-a .last-price')).toContain('≈ US$900.00');
+});
+
+test('Cost Basis handles signs, full amounts, invalid input and exact-cell currency changes', async () => {
+  await setup({ marketValue: false, cash: false, costBasis: true });
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(2);
+  for (const [value, estimate] of [
+    ['(2.7M)', '≈ −US$2,000.00'], ['+1,350.00', '≈ US$1.00'], ['−0M', '≈ US$0.00'],
+  ]) {
+    await page.locator('#captured-a .cost-basis > span:not([data-usd-lens])').evaluate((amount, text) => { amount.textContent = text!; }, value);
+    await expect.poll(() => visibleText('#captured-a .cost-basis')).toContain(estimate!);
+  }
+  for (const [index, value] of ['2.7MM', 'C2.7M', '2.7B', '1,000,001M', '—'].entries()) {
+    await page.locator('#captured-a .cost-basis > span:not([data-usd-lens])').evaluate((amount, text) => { amount.textContent = text; }, value);
+    await page.locator('#captured-b .cost-basis > span:not([data-usd-lens])').evaluate((amount, index) => { amount.textContent = String(1350 * (index + 1)); }, index);
+    await expect.poll(() => visibleText('#captured-b .cost-basis')).toContain(`≈ US$${index + 1}.00`);
+    await expect(page.locator('#captured-a .cost-basis [data-usd-lens]')).toHaveCount(0);
+  }
+  await page.locator('#captured-a .cost-basis > span:not([data-usd-lens])').evaluate(amount => { amount.textContent = '2.7M'; });
+  await expect.poll(() => visibleText('#captured-a .cost-basis')).toContain('≈ US$2,000.00');
+  await page.locator('#captured-a .cost-basis .fs8').evaluate(currency => { currency.textContent = 'USD'; });
+  await expect(page.locator('#captured-a .cost-basis [data-usd-lens]')).toHaveCount(0);
+  await page.locator('#captured-b .cost-basis .fs8').evaluate(currency => { currency.textContent = 'KRW / USD'; });
+  await expect(page.locator('[data-usd-lens=estimate]')).toHaveCount(0);
+});
+
+test('Cost Basis follows column changes and has an independent saved popup toggle', async () => {
+  await setup({ ...allColumns, costBasis: true, lastPrice: true });
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(13);
+  await page.locator('.ptf-positions table').evaluate(element => {
+    const table = element as HTMLTableElement;
+    for (const row of table.rows) row.insertBefore(row.querySelector('.cost-basis')!, row.cells[3]!);
+    table.querySelectorAll('.avg-price').forEach(cell => cell.remove());
+    table.querySelector('#captured-a .cost-basis > span')!.textContent = '270M';
+  });
+  await expect.poll(() => visibleText('#captured-a .cost-basis')).toContain('≈ US$200,000.00');
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(11);
+  await page.locator('.cost-basis').evaluateAll(cells => cells.forEach(cell => { (cell as HTMLElement).hidden = true; }));
+  await expect(page.locator('.cost-basis [data-usd-lens]')).toHaveCount(0);
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(9);
+  await page.locator('.cost-basis').evaluateAll(cells => cells.forEach(cell => { (cell as HTMLElement).hidden = false; }));
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(11);
+  await popup.reload(); await popup.locator('.preferences summary').click();
+  await expect(popup.locator('#costBasis')).toBeChecked();
+  await popup.locator('#costBasis').uncheck(); await popup.locator('#save').click(); await page.bringToFront();
+  await expect(page.locator('.cost-basis [data-usd-lens]')).toHaveCount(0);
+  await expect(page.locator('[data-usd-lens=estimate]:visible')).toHaveCount(9);
+  await popup.reload(); await expect(popup.locator('#costBasis')).not.toBeChecked();
+  await expect(popup.locator('#lastPrice')).toBeChecked();
+  await expect(popup.locator('#dailyPnl')).toBeChecked();
 });
 
 test('separate holding bodies support updates, replacement, removal and regrouping', async () => {

@@ -75,7 +75,7 @@ async function handle(value: unknown, sender: chrome.runtime.MessageSender): Pro
     const input = settingsInput(value.settings);
     return mutate(async () => {
       if (input.ecbEnabled && !await chrome.permissions.contains({ origins: [HOSTS.ecb] }) || input.currencyapiEnabled && !await chrome.permissions.contains({ origins: [HOSTS.currencyapi] })) throw new LensError('RATE_PERMISSION_REQUIRED');
-      settings = { ...input, schemaVersion: 2, setupComplete: true, manualEnteredAt: input.mode === 'manual' ? Date.now() : settings.manualEnteredAt };
+      settings = { ...input, schemaVersion: 4, setupComplete: true, manualEnteredAt: input.mode === 'manual' ? Date.now() : settings.manualEnteredAt };
       await changed(); return popupState();
     });
   }

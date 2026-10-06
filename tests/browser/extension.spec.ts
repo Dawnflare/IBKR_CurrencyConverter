@@ -10,7 +10,7 @@ let extensionId: string;
 let profile: string;
 const extensionPath = resolve('dist/test');
 const fixtureURL = 'http://127.0.0.1:4173/positions.html?extension=1#/positions';
-const manualInput = { enabled: true, mode: 'manual', placement: 'underneath', format: 'full', marketValue: true, avgPrice: false, dailyPnl: false, unrealizedPnl: false, cash: true, ecbEnabled: false, currencyapiEnabled: false, cadence: 'daily', manualRate: 1350 };
+const manualInput = { enabled: true, mode: 'manual', placement: 'underneath', format: 'full', marketValue: true, lastPrice: false, costBasis: false, avgPrice: false, dailyPnl: false, unrealizedPnl: false, cash: true, ecbEnabled: false, currencyapiEnabled: false, cadence: 'daily', manualRate: 1350 };
 async function message<T = unknown>(value: unknown): Promise<T> {
   const reply = await popup.evaluate(async value => chrome.runtime.sendMessage(value), value) as { ok: boolean; data: T; code?: string };
   expect(reply.ok, reply.code).toBe(true); return reply.data;
@@ -305,7 +305,7 @@ test('a browser restart preserves external cache and migrates older column setti
   const before = await worker.evaluate(async () => (await chrome.storage.local.get('rates')).rates);
   const legacy = await worker.evaluate(async () => {
     const current = (await chrome.storage.local.get('settings')).settings as Record<string, unknown>;
-    const { avgPrice: _avg, dailyPnl: _daily, unrealizedPnl: _unrealized, ...settings } = current;
+    const { costBasis: _cost, lastPrice: _last, avgPrice: _avg, dailyPnl: _daily, unrealizedPnl: _unrealized, ...settings } = current;
     const previous = { ...settings, schemaVersion: 1 };
     await chrome.storage.local.set({ settings: previous });
     return previous;
@@ -319,6 +319,6 @@ test('a browser restart preserves external cache and migrates older column setti
   await worker.evaluate(() => { chrome.permissions.contains = async () => true; globalThis.fetch = async () => { throw new Error('Must use persisted cache'); }; });
   const response = await message<{ settings: unknown; lastRate: { rate: { rate: number } } }>({ type: 'getState' });
   expect(response.lastRate.rate.rate).toBe(1350);
-  expect(response.settings).toEqual({ ...legacy, schemaVersion: 2, avgPrice: true, dailyPnl: true, unrealizedPnl: true });
+  expect(response.settings).toEqual({ ...legacy, schemaVersion: 4, costBasis: true, lastPrice: true, avgPrice: true, dailyPnl: true, unrealizedPnl: true });
   expect(await worker.evaluate(async () => (await chrome.storage.local.get('rates')).rates)).toEqual(before);
 });

@@ -72,7 +72,7 @@ $('settingsForm').addEventListener('submit', event => {
     const settings: SettingsInput = {
       enabled: input('enabled').checked, mode: select('mode').value as SettingsInput['mode'],
       placement: select('placement').value as SettingsInput['placement'], format: select('format').value as SettingsInput['format'],
-      marketValue: input('marketValue').checked, cash: input('cash').checked,
+      marketValue: input('marketValue').checked, lastPrice: input('lastPrice').checked, costBasis: input('costBasis').checked, cash: input('cash').checked,
       avgPrice: input('avgPrice').checked, dailyPnl: input('dailyPnl').checked, unrealizedPnl: input('unrealizedPnl').checked,
       ecbEnabled: state.settings.ecbEnabled, currencyapiEnabled: state.settings.currencyapiEnabled,
       cadence: select('cadence').value as SettingsInput['cadence'], manualRate: input('manualRate').value ? Number(input('manualRate').value) : null,

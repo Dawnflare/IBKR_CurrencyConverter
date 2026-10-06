@@ -3,9 +3,28 @@ import type { ErrorCode, FieldKind } from '../core/types';
 const normalized = (element: Element): string => (element.textContent ?? '').trim().replace(/\s+/g, ' ');
 const direct = <T extends Element>(element: Element, name: string): T[] => [...element.children].filter(child => child.tagName === name && !child.hasAttribute('data-usd-lens')) as T[];
 const holdingsColumns = [
-  ['marketValue', 'Market Value'], ['avgPrice', 'Avg Price'],
+  ['marketValue', 'Market Value'], ['lastPrice', 'Last'], ['costBasis', 'Cost Basis'], ['avgPrice', 'Avg Price'],
   ['dailyPnl', 'Daily P&L'], ['unrealizedPnl', 'Unrealized P&L'],
 ] as const;
+const headerTitle = (header: Element): string => normalized(header.querySelector('._thc') ?? header).toLowerCase();
+const visible = (element: Element): boolean => element.getClientRects().length > 0 && getComputedStyle(element).visibility === 'visible';
+const nativeChildren = (element: Element): Element[] => [...element.children].filter(child => !child.hasAttribute('data-usd-lens'));
+/** Explicit currency labels in known monetary cells only; never symbols or account totals. */
+function rowCurrency(row: HTMLTableRowElement, headers: HTMLTableCellElement[]): string | null {
+  const labels = new Set<string>();
+  for (const [index, header] of headers.entries()) {
+    const title = headerTitle(header);
+    const cell = row.cells[index]!;
+    if (!visible(header) || !visible(cell)) continue;
+    if (title === 'currency') { labels.add(normalized(cell)); continue; }
+    if (!['cost basis', 'market value', 'avg price', 'daily p&l', 'unrealized p&l'].includes(title)) continue;
+    const wrapper = title === 'market value' ? direct<HTMLElement>(cell, 'SPAN')[0] : cell;
+    if (!wrapper) continue;
+    for (const label of direct<HTMLElement>(wrapper, 'DIV').filter(node => node.matches('.fs8.fg70'))) labels.add(normalized(label));
+  }
+  const label = [...labels][0];
+  return labels.size === 1 && label && /^(KRW|USD)$/.test(label) ? label : null;
+}
 /** Evidence: local capture, 2026-09-30. See docs/discovery.md. No account/instrument IDs are read. */
 export const adapter: SiteAdapter = {
   name: 'IBKR Positions', verified: true, available: true,
@@ -35,23 +54,24 @@ export const adapter: SiteAdapter = {
   read(region, dirtyRows, enabled) {
     const table = region.root as HTMLTableElement;
     const headers = [...(table.tHead?.rows[0]?.cells ?? [])];
+    if (headers.some(header => header.colSpan !== 1 || header.rowSpan !== 1)) return { candidates: [], code: 'UNSUPPORTED_VIEW' };
     const definitions = region.kind === 'holdings' ? holdingsColumns : [['cash', 'Amount']] as const;
     const columns: Array<{ kind: FieldKind; index: number }> = [];
     let code: ErrorCode | null = null;
     for (const [kind, title] of definitions) {
       if (!enabled.has(kind)) continue;
-      const matches = headers.filter(h => normalized(h.querySelector('._thc') ?? h).toLowerCase() === title.toLowerCase());
+      const matches = headers.filter(h => headerTitle(h) === title.toLowerCase() && visible(h));
       const header = matches[0];
-      if (matches.length !== 1 || !header || header.getClientRects().length === 0 || getComputedStyle(header).visibility !== 'visible') {
-        code ??= kind === 'marketValue' ? 'MARKET_VALUE_COLUMN_MISSING' : 'UNSUPPORTED_VIEW'; continue;
-      }
+      // Hidden or removed columns are a normal display preference, independent of popup toggles.
+      if (!header) continue;
+      if (matches.length !== 1) { code ??= 'UNSUPPORTED_VIEW'; continue; }
       const index = headers.indexOf(header);
-      // Every target follows its current header; an unavailable column does not block the others.
-      if (header.getAttribute('aria-colindex') !== String(index + 1)) { code ??= 'UNSUPPORTED_VIEW'; continue; }
+      // In this complete native table, DOM order associates headers with cells. IBKR can
+      // retain logical aria-colindex values after a column is removed or reordered.
       columns.push({ kind, index });
     }
     if (!columns.length) return { candidates: [], code };
-    const currencyHeaders = headers.filter(h => normalized(h.querySelector('._thc') ?? h).toLowerCase() === 'currency');
+    const currencyHeaders = headers.filter(h => headerTitle(h) === 'currency');
     const currencyColumn = currencyHeaders.length === 1 ? headers.indexOf(currencyHeaders[0]!) : -1;
     if (region.kind === 'cash' && currencyColumn < 0) return { candidates: [], code: 'CURRENCY_AMBIGUOUS' };
     const rows = dirtyRows ? [...dirtyRows] : [...table.tBodies].flatMap(body => [...body.rows]);
@@ -70,6 +90,18 @@ export const adapter: SiteAdapter = {
           candidates.push({ row, cell, mount: cell, kind, currency, text: spans[0]!.textContent ?? '', overlay: { amount: spans[0]!, currency: null } });
           continue;
         }
+        if (kind === 'lastPrice') {
+          const amount = spans[0]!;
+          // Last uses plain/nested spans, including an optional previous-close marker.
+          if (nativeChildren(cell).length !== 1 || [...amount.querySelectorAll('*')].some(node => node.tagName !== 'SPAN')) continue;
+          const text = (amount.textContent ?? '').trim();
+          const previousClose = /^C\s*\d/.test(text);
+          candidates.push({ row, cell, mount: cell, kind, currency: rowCurrency(row, headers),
+            text: previousClose ? text.slice(1).trim() : text,
+            note: previousClose ? 'Last: previous market close (C).' : 'Last price as displayed by IBKR.',
+            overlay: { amount, currency: null } });
+          continue;
+        }
         let amount: HTMLElement;
         let currencyElement: HTMLElement;
         if (kind === 'marketValue') {
@@ -79,14 +111,16 @@ export const adapter: SiteAdapter = {
           if (amounts.length !== 1 || amounts[0]!.children.length) continue;
           amount = amounts[0]!; currencyElement = blocks[1]!;
         } else {
-          // Captured Avg Price and P&L cells: direct amount span + sibling currency div.
+          // Captured Cost Basis, Avg Price and P&L: amount span + sibling currency div.
           const children = [...cell.children].filter(child => !child.hasAttribute('data-usd-lens'));
           const currencies = direct<HTMLElement>(cell, 'DIV');
           if (children.length !== 2 || spans[0]!.children.length || currencies.length !== 1 || !currencies[0]!.matches('.fs8.fg70')) continue;
           amount = spans[0]!; currencyElement = currencies[0]!;
         }
         const label = normalized(currencyElement);
-        candidates.push({ row, cell, mount: cell, kind, currency: /^(KRW|USD)$/.test(label) ? label : null, text: amount.textContent ?? '', overlay: { amount, currency: currencyElement } });
+        candidates.push({ row, cell, mount: cell, kind, currency: /^(KRW|USD)$/.test(label) ? label : null, text: amount.textContent ?? '',
+          note: kind === 'costBasis' ? 'Cost Basis uses the displayed amount. M means million (×1,000,000); abbreviated values may be rounded by IBKR.' : '',
+          overlay: { amount, currency: currencyElement } });
       }
     }
     return { candidates, code };

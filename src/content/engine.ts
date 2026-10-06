@@ -82,7 +82,7 @@ export class LensEngine {
       this.resizeObserver.observe(region.root);
       this.statuses.push({ ...createRegionStatus(region.statusMount, region.statusBefore), region });
       const observer = new MutationObserver(records => this.mutations(region, records));
-      observer.observe(region.root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'headers', 'id', 'aria-colindex', 'data-currency', 'data-currency-code'] });
+      observer.observe(region.root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'headers', 'id', 'aria-colindex', 'colspan', 'rowspan', 'data-currency', 'data-currency-code'] });
       this.observers.push(observer); this.dirty.set(region, null);
     }
     this.flush();
@@ -125,7 +125,7 @@ export class LensEngine {
           continue;
         }
         try {
-          const amount = parseAmount(candidate.text);
+          const amount = parseAmount(candidate.text, { allowMillions: candidate.kind === 'costBasis' });
           const previous = this.fields.get(candidate.cell);
           if (previous && (previous.candidate.mount !== candidate.mount || !previous.annotation.host.isConnected)) this.remove(candidate.cell);
           const annotation = this.fields.get(candidate.cell)?.annotation ?? createAnnotation(candidate.mount);
@@ -140,9 +140,11 @@ export class LensEngine {
     else if (!this.fields.size) { this.bridge.release(this.generation); if (this.rateTimer) clearTimeout(this.rateTimer); this.rateTimer = null; }
   }
   private render(): void {
+    // After column movement, old overlay positions must not occlude another cell's fit check.
+    for (const field of this.fields.values()) if (field.candidate.overlay) field.annotation.host.style.visibility = 'hidden';
     for (const field of this.fields.values()) {
       try {
-        updateAnnotation(field.annotation, field.amount, this.settings, this.result, Date.now());
+        updateAnnotation(field.annotation, field.amount, this.settings, this.result, Date.now(), field.candidate.note);
         if (!positionOverlay(field.candidate, field.annotation, this.settings.placement)) this.diagnostics.set(field.candidate.cell, 'UNSUPPORTED_VIEW');
         else if (this.diagnostics.get(field.candidate.cell) === 'UNSUPPORTED_VIEW') this.diagnostics.delete(field.candidate.cell);
       }

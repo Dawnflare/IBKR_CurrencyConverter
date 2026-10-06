@@ -25,18 +25,30 @@ describe('trust boundaries', () => {
   it('validates settings with exact keys and primitive enums', () => {
     const { schemaVersion: _schema, setupComplete: _setup, manualEnteredAt: _entered, ...input } = DEFAULT_SETTINGS;
     expect(settingsInput(input)).toEqual(input);
-    for (const change of [{ mode: ['auto'] }, { enabled: 'true' }, { avgPrice: 'true' }, { dailyPnl: null }, { unrealizedPnl: 1 }, { manualRate: 0 }, { mode: 'manual', manualRate: null }, { key: 'unexpected' }]) expect(() => settingsInput({ ...input, ...change })).toThrow();
-    expect(restoreSettings({ ...DEFAULT_SETTINGS, schemaVersion: 3 })).toEqual(DEFAULT_SETTINGS);
+    for (const change of [{ mode: ['auto'] }, { enabled: 'true' }, { costBasis: 'true' }, { lastPrice: 'true' }, { avgPrice: 'true' }, { dailyPnl: null }, { unrealizedPnl: 1 }, { manualRate: 0 }, { mode: 'manual', manualRate: null }, { key: 'unexpected' }]) expect(() => settingsInput({ ...input, ...change })).toThrow();
+    expect(restoreSettings({ ...DEFAULT_SETTINGS, schemaVersion: 5 })).toEqual(DEFAULT_SETTINGS);
   });
   it.each(['manual', 'ecb'] as const)('migrates old %s settings without resetting source, consent or rate time', mode => {
-    const { avgPrice: _avg, dailyPnl: _daily, unrealizedPnl: _unrealized, ...old } = DEFAULT_SETTINGS;
+    const { costBasis: _cost, lastPrice: _last, avgPrice: _avg, dailyPnl: _daily, unrealizedPnl: _unrealized, ...old } = DEFAULT_SETTINGS;
     const saved = { ...old, schemaVersion: 1, setupComplete: true, enabled: true, mode, manualRate: 1350, manualEnteredAt: 123456789, ecbEnabled: true, marketValue: false, cash: false };
-    expect(restoreSettings(saved)).toEqual({ ...saved, schemaVersion: 2, avgPrice: true, dailyPnl: true, unrealizedPnl: true });
+    expect(restoreSettings(saved)).toEqual({ ...saved, schemaVersion: 4, costBasis: true, lastPrice: true, avgPrice: true, dailyPnl: true, unrealizedPnl: true });
+  });
+  it.each(['manual', 'ecb'] as const)('adds Last to v2 %s settings while preserving disabled Avg Price and other preferences', mode => {
+    const { costBasis: _cost, lastPrice: _last, ...old } = DEFAULT_SETTINGS;
+    const saved = { ...old, schemaVersion: 2, setupComplete: true, enabled: true, mode, manualRate: 1350, manualEnteredAt: 123456789, ecbEnabled: true, avgPrice: false, marketValue: false, dailyPnl: false, cash: false };
+    expect(restoreSettings(saved)).toEqual({ ...saved, schemaVersion: 4, costBasis: true, lastPrice: true });
+  });
+  it.each(['manual', 'ecb'] as const)('adds Cost Basis to v3 %s settings without resetting other choices', mode => {
+    const { costBasis: _cost, ...old } = DEFAULT_SETTINGS;
+    const saved = { ...old, schemaVersion: 3, setupComplete: true, enabled: true, mode, manualRate: 1350, manualEnteredAt: 123456789, ecbEnabled: true, lastPrice: false, avgPrice: false, marketValue: false, cash: false };
+    expect(restoreSettings(saved)).toEqual({ ...saved, schemaVersion: 4, costBasis: true });
   });
   it('keeps disabled new fields across restoration and rejects malformed current settings', () => {
-    const settings = { ...DEFAULT_SETTINGS, setupComplete: true, avgPrice: false, dailyPnl: false, unrealizedPnl: false };
+    const settings = { ...DEFAULT_SETTINGS, setupComplete: true, costBasis: false, lastPrice: false, avgPrice: false, dailyPnl: false, unrealizedPnl: false };
     expect(restoreSettings(settings)).toEqual(settings);
     expect(restoreSettings({ ...settings, avgPrice: undefined })).toEqual(DEFAULT_SETTINGS);
+    expect(restoreSettings({ ...settings, lastPrice: undefined })).toEqual(DEFAULT_SETTINGS);
+    expect(restoreSettings({ ...settings, costBasis: undefined })).toEqual(DEFAULT_SETTINGS);
   });
   it('checks the captured route before reading any DOM', () => {
     expect(adapter.available).toBe(true); expect(adapter.verified).toBe(true);

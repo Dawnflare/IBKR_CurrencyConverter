@@ -26,3 +26,21 @@ describe('conversion and display', () => {
   });
   it.each([[200000, '≈ US$200k'], [-50000, '≈ −US$50k'], [1350000, '≈ US$1.35M'], [2e9, '≈ US$2B'], [999995, '≈ US$1M'], [-0.001, '≈ US$0.00']])('compact %s', (value, expected) => expect(formatUSD(value as number, 'compact')).toBe(expected));
 });
+
+describe('Cost Basis millions', () => {
+  it.each([
+    ['416M', 416000000], ['34.5M', 34500000], ['0.125M', 125000], ['1,234.5M', 1234500000],
+    ['+2M', 2000000], ['−2M', -2000000], ['(2.5M)', -2500000], ['-0M', 0],
+    ['\u00a0416 M\u202f', 416000000], ['416m', 416000000], ['KRW 416M', 416000000],
+    ['(2.5M KRW)', -2500000], ['1,350.00', 1350], ['1,000,000M', 1e12],
+  ])('expands %s to %s', (text, expected) => expect(parseAmount(text as string, { allowMillions: true })).toBe(expected));
+  it.each(['M', '416MM', '4,16M', '4e2M', '4.16.0M', 'C416M', '(-2M)', '416M USD', '416M extra'])('rejects malformed %s', text => {
+    expect(() => parseAmount(text, { allowMillions: true })).toThrow('AMOUNT_INVALID');
+  });
+  it('bounds the expanded amount and keeps other abbreviations unsupported', () => {
+    expect(() => parseAmount('1,000,001M', { allowMillions: true })).toThrow('AMOUNT_UNSAFE');
+    expect(() => parseAmount('-1,000,001M', { allowMillions: true })).toThrow('AMOUNT_UNSAFE');
+    for (const text of ['1K', '1B', '1T']) expect(() => parseAmount(text, { allowMillions: true })).toThrow('AMOUNT_ABBREVIATED');
+    expect(() => parseAmount('416M')).toThrow('AMOUNT_ABBREVIATED');
+  });
+});
