@@ -1,19 +1,19 @@
 # IBKR USD Lens
 
-**Status: user-validated Positions display in Manual and ECB modes.** A private Manifest V3 extension for supplementary USD estimates of KRW **Market Value, Last, Cost Basis, Avg Price (cost basis per unit), Daily P&L, Unrealized P&L**, and **Cash Holdings Amount**. Conversion means local arithmetic and display. There are no trading, transfer, brokerage API, or account-management features.
+**See the USD equivalent of your Korea Exchange holdings directly in IBKR.**
 
-The calculation, provider worker, protected settings popup, annotation engine, synthetic demo, and production site adapter are implemented. **The production adapter supports `https://portal.interactivebrokers.com/portal/#/dashboard/positions`.** Its selectors and amount/currency associations come from the user-provided local MHTML capture. The user confirmed successful live display with both Manual and ECB daily reference after the 0.1.1 correction. Unrecognized routes/layouts and cells without safe presentation space return `UNSUPPORTED_VIEW`. Detailed test coverage is recorded in [testing.md](docs/testing.md). The private reference capture is excluded from Git; only manually constructed fictional fixtures are included. No IBKR page rate has been verified, so that source is unavailable.
+IBKR USD Lens is a Chrome extension for investors who hold Korean stocks and think in US dollars. It adds estimated USD values beside the Korean won (KRW) amounts on **Interactive Brokers Client Portal → Positions**, so you can read your Korea Exchange (KRX) holdings' prices, value, cost basis, and profit or loss in dollars while keeping the original KRW figures visible.
 
-## Try the synthetic demo
+- **Prices and holdings:** USD estimates for Last, Market Value, Cost Basis, Avg Price, Daily P&L, and Unrealized P&L, plus KRW cash balances.
+- **Flexible exchange rates:** use the keyless ECB daily reference, enter a manual rate, or connect your own currencyapi key.
+- **Fits your view:** choose which fields to annotate, use full or compact USD amounts, and hide or reorder IBKR columns.
+- **Display only:** original values stay intact. The extension does not trade, exchange currency, or change account settings. Portfolio amounts stay in your browser.
 
-The generated `dist/demo/index.html` can be opened directly in a browser. It uses fictional amounts and a manual rate, without external requests. To build and serve it locally:
+For example, at an illustrative rate of **₩1,350 per US$1**, a KRW market value of **₩270,000,000** gets an additional **≈ US$200,000.00** estimate. All supported fields use the same selected FX rate.
 
-```powershell
-npm ci
-npm run demo
-```
+Supports the [IBKR Client Portal Positions page](https://portal.interactivebrokers.com/portal/#/dashboard/positions). Live display has been user-validated in Manual and ECB modes, including Last and Cost Basis. Estimates reflect the displayed KRW amounts and the selected FX source; the ECB source is a daily reference, not a live quote.
 
-Open `http://127.0.0.1:4173/positions.html#/positions`. Change 1,350 to 1,500 KRW per USD, switch full/compact display, disable estimates, update values, recycle rows, reorder columns, replace the view, and load 200 fictional rows. Stop the local server with Ctrl+C.
+[Install](#build-and-install) · [Choose an FX source](#rate-setup) · [Supported fields](#supported-fields) · [Privacy](PRIVACY.md) · [MIT license](LICENSE)
 
 ## Build and install
 
@@ -22,6 +22,8 @@ Open `http://127.0.0.1:4173/positions.html#/positions`. Change 1,350 to 1,500 KR
 Use Node **22.12 or later in the 22.x line**, or Node **24+**, and npm. Development was checked with Node 22.22.2 and npm 10.9.7 on Windows. Exact tool versions are pinned in `package.json` and `package-lock.json`. There are zero production dependencies.
 
 ```powershell
+git clone https://github.com/Dawnflare/IBKR_CurrencyConverter.git
+cd IBKR_CurrencyConverter
 npm ci
 npm run build
 ```
@@ -31,7 +33,8 @@ The unpacked production extension is generated in **`dist/production`**. Node/np
 1. In Chrome, open `chrome://extensions` and enable Developer mode.
 2. Choose **Load unpacked** and select `dist/production`.
 3. Pin USD Lens if desired, then open its popup.
-4. Configure a source and save settings. Open the supported Positions view to see USD estimates and the field count in the popup. You can test public FX separately from the popup.
+4. Choose an FX source and save settings. For keyless rates, expand **External sources & provider key**, click **Enable ECB**, and select **ECB daily reference**. For offline use, choose **Manual** and enter KRW per US$1.
+5. Open **Client Portal → Positions**. USD estimates appear beside eligible KRW amounts; the popup shows how many fields are annotated.
 
 After rebuilding, click the extension's **Reload** button and reload any test page to retire its previous content script. Do not run two copies of the extension on one page. Chrome 114 is the declared minimum for the selected APIs; automated browser validation used bundled Chromium 153. Brave can load the same unpacked build at `brave://extensions`, but a manual Brave smoke test is still required.
 
@@ -60,7 +63,9 @@ Last has no currency label of its own, so the extension reads explicit labels in
 
 Cost Basis reads its own KRW label and expands the displayed `M` suffix by 1,000,000 before conversion (for example, `250M` means 250,000,000 KRW and `34.5M` means 34,500,000 KRW). Full amounts also work. The native abbreviation stays visible; the tooltip explains that IBKR may have rounded it. This converts the displayed amount without recovering undisplayed precision.
 
-Every estimate divides its displayed KRW amount by the same selected KRW-per-USD rate. Last represents the displayed market price; Avg Price represents average cost basis per unit. P&L annotations translate the native displayed P&L amount at the selected FX rate; they do not calculate a separate historical USD investment return. Native values, signs, and colors remain intact, and estimates match their native amount's text color. The added columns were requested after the original PRD and extend its initial Market Value/cash scope.
+Every estimate divides its displayed KRW amount by the same selected KRW-per-USD rate. Last represents the displayed market price; Avg Price represents average cost basis per unit. P&L annotations translate the native displayed P&L amount at the selected FX rate; they do not calculate a separate historical USD investment return. Native values, signs, and colors remain intact, and estimates match their native amount's text color.
+
+The extension currently converts KRW to USD only. USD rows are left unchanged. If currency evidence is missing or conflicting, or an estimate cannot fit safely inside its cell, that estimate is withheld. Unsupported routes or layouts are reported as `UNSUPPORTED_VIEW`.
 
 ## Freshness and failures
 
@@ -80,7 +85,20 @@ Requests time out after 10 seconds and responses are limited to 16 KiB. Requests
 
 **Refresh / test FX** is an explicit provider test. It may bypass a normal cache interval but not rate-limit backoff, has a global 60-second cooldown, and allows at most one successful currencyapi daily request per hour. It refreshes only FX. Normal polling requires visible eligible fields; hidden/closed tabs do not keep a worker polling loop alive.
 
+## Try the demo
+
+The demo uses fictional holdings and a manual exchange rate, with no IBKR login or external requests. From the repository directory, run:
+
+```powershell
+npm ci
+npm run demo
+```
+
+Open `http://127.0.0.1:4173/positions.html#/positions`. Try changing the FX rate, switching full/compact display, updating values, reordering columns, and loading 200 fictional rows. Stop the server with Ctrl+C. You can also open the generated `dist/demo/index.html` directly in a browser.
+
 ## Development and checks
+
+The extension uses Manifest V3 with no production dependencies. Its production adapter is based on a locally inspected IBKR layout; the demo and browser tests use separate fictional fixtures. Private reference captures are excluded from Git and build output. See [discovery.md](docs/discovery.md) for implementation evidence and layout limits.
 
 ```powershell
 npm run typecheck
@@ -121,4 +139,8 @@ The production manifest requests only `storage`, an isolated top-frame content s
 
 For a failure report, include the extension version, source mode, generic error code, and fictional reproduction steps. Supply only the small, manually sanitized snippets described in [discovery.md](docs/discovery.md). Never send real holdings, identifiers, raw responses, full DOM/HTML, HARs, cookies, browser storage/profile data, screenshots containing balances, or provider keys.
 
-Display estimate only. Not an executable FX quote or IBKR account valuation. Independent of IBKR. This release is for personal unpacked use; no public distribution or broker endorsement is implied.
+## License
+
+[MIT](LICENSE). Copyright © 2026 Dawnflare.
+
+IBKR USD Lens is an independent project and is not affiliated with or endorsed by Interactive Brokers. Estimates are for display only, not executable FX quotes or official IBKR account valuations. Install the extension locally using the steps above; this repository does not provide a browser-store release.
